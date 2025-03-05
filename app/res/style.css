@@ -1,0 +1,8 @@
+.resourceLink {
+  color: var(--pc-box-color);
+  text-decoration: none;
+}
+
+.resourceLink:hover {
+  background-color: var(--p-color-bg-fill-hover);
+}
