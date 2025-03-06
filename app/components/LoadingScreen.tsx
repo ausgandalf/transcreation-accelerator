@@ -9,7 +9,7 @@ export const LoadingScreen = () => {
       top: '0',
       bottom: '0',
       backgroundColor: 'rgba(255,255,255,0.8)',
-      zIndex: '10',
+      zIndex: '1000',
     }}>
       <div className='loadingScreenInner' style={{
         position: 'absolute',

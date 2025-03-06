@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "92cdb7afa95558f737349f0bf62a35a9"
-application_url = "https://physician-forbidden-numerical-handed.trycloudflare.com"
+application_url = "https://jackets-bar-broke-element.trycloudflare.com"
 embedded = true
 name = "Transcreation Accelerator"
 handle = "transcreation-accelerator-2"
@@ -19,9 +19,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://physician-forbidden-numerical-handed.trycloudflare.com/auth/callback",
-  "https://physician-forbidden-numerical-handed.trycloudflare.com/auth/shopify/callback",
-  "https://physician-forbidden-numerical-handed.trycloudflare.com/api/auth/callback"
+  "https://jackets-bar-broke-element.trycloudflare.com/auth/callback",
+  "https://jackets-bar-broke-element.trycloudflare.com/auth/shopify/callback",
+  "https://jackets-bar-broke-element.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
