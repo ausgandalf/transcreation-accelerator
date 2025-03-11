@@ -1,33 +1,46 @@
 import {useState, useCallback, ReactNode} from 'react';
 import {
-  Text,
-  Button,
-  BlockStack,
-  ActionList,
-  Popover,
-  OptionList,
-  InlineStack,
+    Icon,
+    Text,
+    Button,
+    BlockStack,
+    ActionList,
+    Popover,
+    OptionList,
+    InlineStack,
 } from "@shopify/polaris";
+import {
+    ChevronDownIcon,
+} from '@shopify/polaris-icons';
 
-import { ActionListItemDescriptor } from '@shopify/polaris/build/ts/src/types';
+import { ActionListItemDescriptor, ActionListSection } from '@shopify/polaris/build/ts/src/types';
 
 interface SelectPopProps {
     label: string,
-    items: ActionListItemDescriptor[],
+    items?: ActionListItemDescriptor[],
+    sections?: ActionListSection[],
     suffix?: ReactNode,
+    variant?: string
 }
 
-export const SelectPop = ({label, items, suffix} : SelectPopProps ) => {
+const defaultProps: SelectPopProps = {
+    label: 'Select',
+    variant: 'headingLg',
+    suffix: <Icon source={ChevronDownIcon}/>,
+}
+
+export const SelectPop = (props : SelectPopProps ) => {
+    props = {...defaultProps, ...props};
+    const {label, variant, items, sections, suffix} = props;
 
     const [popActive, setPopActive] = useState(false);
-    const [selected, setSelected] = useState<string[]>([]);
 
     const togglePopActive = useCallback(() => setPopActive((active) => !active), []);
     const popActiveActivator = (
         <BlockStack gap="200">
             <Button variant='tertiary' onClick={togglePopActive}>
                 <InlineStack wrap={false} gap='050'>
-                    <Text as='p' variant='headingLg'><span style={{whiteSpace:"nowrap"}}>{label}</span></Text>
+                    <Text as='p' variant={ variant }><span style={{whiteSpace:"nowrap"}}>{label}</span></Text>
                     {suffix}
                 </InlineStack>
             </Button>
@@ -41,10 +54,20 @@ export const SelectPop = ({label, items, suffix} : SelectPopProps ) => {
             autofocusTarget="first-node"
             onClose={togglePopActive}
             >
-            <ActionList
-                actionRole="menuitem"
-                items={items}
-            />
+                {items && (
+                    <ActionList
+                        actionRole="menuitem"
+                        items={items}
+                    />
+                )}
+
+                {sections && (
+                    <ActionList
+                        actionRole="menuitem"
+                        sections={sections}
+                    />
+                )}
+
         </Popover>
     )
 }

@@ -1,10 +1,10 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "92cdb7afa95558f737349f0bf62a35a9"
-application_url = "https://jackets-bar-broke-element.trycloudflare.com"
+client_id = "a7e12a2610d20e6486de1aa5ea870187"
+application_url = "https://heel-minutes-programming-forget.trycloudflare.com"
 embedded = true
-name = "Transcreation Accelerator"
-handle = "transcreation-accelerator-2"
+name = "AI Transcreation"
+handle = "ai-transcreation"
 
 [build]
 include_config_on_deploy = true
@@ -19,9 +19,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://jackets-bar-broke-element.trycloudflare.com/auth/callback",
-  "https://jackets-bar-broke-element.trycloudflare.com/auth/shopify/callback",
-  "https://jackets-bar-broke-element.trycloudflare.com/api/auth/callback"
+  "https://heel-minutes-programming-forget.trycloudflare.com/auth/callback",
+  "https://heel-minutes-programming-forget.trycloudflare.com/auth/shopify/callback",
+  "https://heel-minutes-programming-forget.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

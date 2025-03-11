@@ -1,5 +1,12 @@
 import createApp from '@shopify/app-bridge';
-import { Redirect } from "@shopify/app-bridge/actions";
+import { Redirect, Fullscreen } from "@shopify/app-bridge/actions";
+import {
+  Icon,
+  Tooltip,
+} from "@shopify/polaris";
+import {
+  QuestionCircleIcon,
+} from '@shopify/polaris-icons';
 
 export const getRedirect = (shopify) => {
   const app = createApp({
@@ -9,6 +16,16 @@ export const getRedirect = (shopify) => {
   });
   const redirect = Redirect.create(app);
   return redirect;
+}
+
+export const getFullscreen = (shopify) => {
+  const app = createApp({
+    apiKey: shopify.config.apiKey,
+    host: shopify.config.host,
+    forceRedirect: true,
+  });
+  const fullscreen = Fullscreen.create(app);
+  return fullscreen;
 }
 
 export const getDateBy = (offset?: string|number|undefined) : Date|any => {
@@ -42,3 +59,7 @@ export const sleep = (ms: number) =>
 
 export const isArrayIncluded = (arr:[], target:[]) => target.every(v => arr.includes(v));
 export const isArrayHasAny = (arr:[], target:[]) => target.some(v => arr.includes(v));
+
+export const tooltip = (tip: string) => {
+  return <Tooltip content={tip}><Icon source={QuestionCircleIcon} /></Tooltip>
+}

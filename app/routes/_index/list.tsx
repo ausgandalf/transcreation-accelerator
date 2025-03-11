@@ -17,9 +17,11 @@ import {ChevronRightIcon} from '@shopify/polaris-icons';
 
 interface ResourceListProps {
   sections?: [];
+  goto?: Function;
 }
 
 const defaultProps: ResourceListProps = {
+  goto: (url:string) => {},
   sections: [
     {
       title: 'Products',
@@ -34,7 +36,7 @@ const defaultProps: ResourceListProps = {
 export const ResourceList = (props: ResourceListProps) => {
 
   props = {...defaultProps, ...props}
-  const { sections } = props;
+  const { sections, goto } = props;
 
   return (
     <Box>
@@ -48,7 +50,7 @@ export const ResourceList = (props: ResourceListProps) => {
             {x.items.map((item, j) => (
               <BlockStack key={`block-${i}-${j}`}>
                 <Divider />
-                <a href={item.url} className='resourceLink'>
+                <a href='#' onClick={(e) => {e.preventDefault(); goto(item.url)}} className='resourceLink'>
                   <Box padding='400'>
                     <InlineStack align='space-between'>
                       <InlineStack gap='100' blockAlign='center'>

@@ -22,10 +22,10 @@ export async function getActiveThemeId(graphql) {
   return themeId;
 }
 
-export async function getshopLocales(graphql) {
+export async function getShopLocales(graphql) {
 
   const response = await graphql(`
-  query getshopLocales {
+  query getShopLocales {
     shopLocales {
       locale
       name
@@ -40,5 +40,35 @@ export async function getshopLocales(graphql) {
   } = await response.json();
 
   return shopLocales;
+}
+
+
+export async function getShopMarkets(graphql) {
+
+  const response = await graphql(`
+  query Markets {
+    markets(first:50) {
+      nodes {
+        handle
+        name
+        webPresence {
+          rootUrls {
+            locale
+            url
+          }
+        }
+      }
+    }
+  }`);
+ 
+  const {
+    data: { markets },
+  } = await response.json();
+
+  return markets.nodes.map((x, i) => ({
+    handle: x.handle,
+    name: x.name,
+    locales: x.webPresence.rootUrls,
+  }));
 }
 

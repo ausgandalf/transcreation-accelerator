@@ -1,7 +1,7 @@
 import {useState, useEffect, useCallback} from 'react';
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
-import { Form, useLoaderData, useNavigation } from "@remix-run/react";
+import { Form, useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { Redirect } from "@shopify/app-bridge/actions";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -16,11 +16,9 @@ import {
   InlineStack,
   Text,
   Badge,
-  Tooltip,
 } from "@shopify/polaris";
 import {
   ChevronDownIcon,
-  QuestionCircleIcon,
 } from '@shopify/polaris-icons';
 
 import polarisTranslations from "@shopify/polaris/locales/en.json";
@@ -34,10 +32,13 @@ import appStyles from "../../res/style.css?url";
 import { SelectPop } from 'app/components/SelectPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
 import { getRedirect } from 'app/components/Functions';
-import { getshopLocales } from 'app/api/App';
+import { getShopLocales } from 'app/api/App';
 
 import { Skeleton } from './skeleton';
 import { ResourceList } from './list';
+import { GuideModal } from './modal';
+
+import { sections, guideData } from 'app/api/data';
 
 export const links = () => [
   { rel: "stylesheet", href: polarisStyles },
@@ -52,7 +53,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let endLoop = false;
   while (!endLoop) {
     try {
-      locales = await getshopLocales(admin.graphql);
+      locales = await getShopLocales(admin.graphql);
       endLoop = true;
     } catch (e) {}
   }
@@ -99,6 +100,7 @@ export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedLocale, setSelectedLocale] = useState(currentLocale);
+  // const [searchParams, setSearchParams] = useSearchParams();
 
   const nav = useNavigation();
   const isSaving =
@@ -119,7 +121,6 @@ export default function App() {
 
       return (<SelectPop 
         label={selectedLocale.name} 
-        suffix={<Icon source={ChevronDownIcon}/>}
         items={locales.map(
           (x, i) => ({
             content: x.name,
@@ -152,59 +153,17 @@ export default function App() {
     );
   };
 
-  const openQuickGuide = () => {}
-
-  const tooltip = (tip: string) => {
-    return <Tooltip content={tip}><Icon source={QuestionCircleIcon} /></Tooltip>
+  const openQuickGuide = () => {
+    document.getElementById('guide-modal').show();
   }
 
-  const sections = [
-    {
-      title: 'Products',
-      items: [
-        {content: 'Collections', url: '#'},
-        {content: 'Products', url:  '#'},
-      ],
-    },
-    {
-      title: 'Online Store',
-      items: [
-        {content: 'Blog posts', url: '#'},
-        // {content: 'Blog titles', url:  '#', suffix: tooltip('Default translations already available in supported languges')},
-        {content: 'Blog titles', url:  '#'},
-        {content: 'Cookie banner', url:  '#'},
-        {content: 'Filters', url:  '#'},
-        {content: 'Metaobjects', url:  '#'},
-        {content: 'Pages', url:  '#'},
-        {content: 'Policies', url:  '#'},
-        {content: 'Store metadata', url:  '#'},
-      ],
-    },
-    {
-      title: 'Content',
-      items: [
-        {content: 'Menu', url: '#'},
-      ],
-    },
-    {
-      title: 'Theme',
-      items: [
-        {content: 'App embeds', url: '#'},
-        {content: 'Default theme content', url: '#'},
-        {content: 'Section groups', url: '#'},
-        {content: 'Static sections', url: '#'},
-        {content: 'Templates', url: '#'},
-        {content: 'Theme settings', url: '#'},
-      ],
-    },
-    {
-      title: 'Settings',
-      items: [
-        {content: 'Notifications', url: '#'},
-        {content: 'Shipping and delivery', url: '#'},
-      ],
-    },
-  ]
+  const goto = (path:string) => {
+    setIsLoading(true);
+    getRedirect(shopify).dispatch(
+      Redirect.Action.APP,
+      `${path}?shopLocale=${selectedLocale.locale}`,
+    )
+  }
 
   return (
     <AppProvider i18n={translation} isEmbeddedApp apiKey={apiKey}>
@@ -233,7 +192,7 @@ export default function App() {
             <Layout.Section>
               <BlockStack gap='600'>
                 <Card padding='0'>
-                  <ResourceList sections={sections} />
+                  <ResourceList sections={sections} goto={goto} />
                 </Card>
                 <Box></Box>
               </BlockStack>
@@ -289,6 +248,7 @@ export default function App() {
             </Layout.Section>
             
           </Layout>
+          <GuideModal steps={guideData} />
         </Page>
       )}
     </AppProvider>
