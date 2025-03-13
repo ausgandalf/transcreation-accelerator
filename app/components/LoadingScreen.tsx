@@ -1,9 +1,9 @@
 import {Spinner} from '@shopify/polaris';
 
-export const LoadingScreen = () => {
+export const LoadingScreen = ({position}) => {
   return(
     <div className='loadingScreen' style={{
-      position: 'fixed',
+      position: position ? position : 'fixed',
       left: '0',
       right: '0',
       top: '0',

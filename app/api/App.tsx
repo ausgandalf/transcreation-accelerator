@@ -34,7 +34,6 @@ export async function getShopLocales(graphql) {
     }
   }`);
   
-  // const themeId = response.data.themes.nodes[0].id;
   const {
     data: { shopLocales },
   } = await response.json();
@@ -46,7 +45,7 @@ export async function getShopLocales(graphql) {
 export async function getShopMarkets(graphql) {
 
   const response = await graphql(`
-  query Markets {
+  query getMarkets {
     markets(first:50) {
       nodes {
         handle
@@ -70,5 +69,75 @@ export async function getShopMarkets(graphql) {
     name: x.name,
     locales: x.webPresence.rootUrls,
   }));
+}
+
+
+export async function getProducts(graphql, cursor?:string, status?:string, limit:number = 12) {
+  const first = `first: ${limit}`;
+  const start = cursor ? `after:"${cursor}"` : '';
+  const search = `query:"${status ? 'status:' + status : ''}"`;
+
+  const productParams = [first, start, search].filter((x) => x != '').join(',');
+
+  const response = await graphql(`
+  query getProducts {
+    productsCount(${search}) {
+      count
+    }
+    products(${productParams}) {
+      nodes {
+        id
+        handle
+        title
+        image:featuredMedia {
+          preview {
+            image {
+              url
+            }
+          }
+        }
+      }
+      pageInfo {
+        startCursor
+        endCursor
+        hasNextPage
+        hasPreviousPage
+      }
+    }
+  }`);
+ 
+  const {
+    data: { products, productsCount },
+  } = await response.json();
+
+  return {products, total: productsCount.count};
+}
+
+
+export async function getCollections(graphql, cursor?:string, limit:number = 12) {
+
+  const start = cursor ? `,after:"${cursor}"` : '';
+
+  const response = await graphql(`
+  query getCollections {
+    collections(first: ${limit} ${start}) {
+      nodes {
+        id
+        handle
+        title
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        endCursor
+      }
+    }
+  }`);
+ 
+  const {
+    data: { collections },
+  } = await response.json();
+
+  return collections;
 }
 

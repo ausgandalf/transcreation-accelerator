@@ -1,4 +1,4 @@
-import {useState, useEffect, useCallback} from 'react';
+import {useState, useEffect, useMemo, useCallback} from 'react';
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
 import { useOutletContext, useLoaderData, useNavigate, useNavigation, useFetcher, useActionData, useSubmit, useSearchParams } from "@remix-run/react";
@@ -22,9 +22,11 @@ import {
   FullscreenBar,
   Pagination,
   Divider,
+  Thumbnail,
 } from "@shopify/polaris";
 import {
-  FilterIcon
+  FilterIcon,
+  ImageIcon,
 } from '@shopify/polaris-icons';
 
 import polarisTranslations from "@shopify/polaris/locales/en.json";
@@ -35,10 +37,10 @@ import { SelectPop } from 'app/components/SelectPop';
 import { MarketsPop } from 'app/components/MarkertsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
 import { getRedirect, getFullscreen } from 'app/components/Functions';
-import { getCollections } from 'app/api/App';
+import { getProducts } from 'app/api/App';
 import { CheckListPop } from 'app/components/CheckListPop';
 
-import { Skeleton } from './skeleton';
+import { Skeleton, SkeletonResources } from './skeleton';
 import { sections } from 'app/api/data';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -63,16 +65,16 @@ export async function action({ request, params }) {
 
   if (data.action == 'list') {
     // Load Collection data
-    let collections = false;
+    let productsData = {};
     let endLoop = false;
     while (!endLoop) {
       try {
-        collections = await getCollections(admin.graphql, data.cursor);
+        productsData = await getProducts(admin.graphql, data.cursor, data.status, data.perPage);
         endLoop = true;
       } catch (e) {}
     }
     
-    return Response.json({ collections, data, action: data.action });
+    return Response.json({ ...productsData, input:data });
   }
   
   // const defaultResponse:ActionDataType = {
@@ -106,6 +108,8 @@ export default function App() {
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResourceLoading, setIsResourceLoading] = useState(false);
+  
 
   // const [searchParams, setSearchParams] = useSearchParams();
   
@@ -124,46 +128,68 @@ export default function App() {
   ///////////////////////////////////////////////////////////////////////////////////
   const fetcher = useFetcher();
   
-  const perPage = 12; // Let's keep this fixed for now
+  const perPage = 10; // Let's keep this fixed for now
   const [resources, setResources] = useState([]);
   const [selectedResource, setSelectedResource] = useState(false);
+  const [pagedResources, setPagedResources] = useState([]);
   const [page, setPage] = useState(0);
   const [cursor, setCursor] = useState(''); // if empty, means reached to the end.
-  
+  const [knownTotalPage, setKnownTotalPage] = useState(0);
+  const [filterStatus, setFilterStatus] = useState('');
 
-  const pagedResources = resources.slice(page * perPage, (page + 1) * perPage);
   const totalPage = Math.ceil(resources.length / perPage);
   const isFirstLoad = typeof fetcher.data == 'undefined';
   const isLastPage = (cursor == '') && !(page < totalPage - 1);
-  const shouldLoad = (cursor != '') && !(page < totalPage - 1);
+  const shouldLoad = (cursor != '') && !(page < totalPage);
+
+  // const pagedResources = resources.slice(page * perPage, (page + 1) * perPage);
+  // const isSelectedResourceIn = pagedResources.some((x) => (x.handle == selectedResource?.handle));
+  // const displayingResources = isSelectedResourceIn ? [...pagedResources] : [selectedResource, ...pagedResources];
 
   // useEffect(() => {
   //   console.log('cursor:', cursor, 'isLastPage:', isLastPage, resources.length);
   //   console.log(actionData);
   //   if (actionData) {
-  //     if (actionData.collections.pageInfo.hasNextPage) {
-  //       setCursor(actionData.collections.pageInfo.endCursor);
+  //     if (actionData.products.pageInfo.hasNextPage) {
+  //       setCursor(actionData.products.pageInfo.endCursor);
   //     }
-  //     setResources((oldResources) => ([...oldResources, ...actionData.collections.nodes]));
+  //     setResources((oldResources) => ([...oldResources, ...actionData.products.nodes]));
 
   //     // Select first resource, if nothing selected.
-  //     if (!selectedResource && (actionData.collections.nodes.length > 0)) setSelectedResource(actionData.collections.nodes[0]);
+  //     if (!selectedResource && (actionData.products.nodes.length > 0)) setSelectedResource(actionData.products.nodes[0]);
   //   }
   // }, [actionData]);
 
   useEffect(() => {
-    console.log('cursor:', cursor, 'isLastPage:', isLastPage, resources.length, fetcher);
-    console.log(fetcher.data);
+    setIsResourceLoading(false);
+    console.log(fetcher);
     if (fetcher.data) {
-      if (fetcher.data.collections.pageInfo.hasNextPage) {
-        setCursor(fetcher.data.collections.pageInfo.endCursor);
+      setKnownTotalPage(fetcher.data.total);
+      if (fetcher.data.products.pageInfo.hasNextPage) {
+        setCursor(fetcher.data.products.pageInfo.endCursor);
+      } else {
+        setCursor(''); // Disable loading
       }
-      setResources((oldResources) => ([...oldResources, ...fetcher.data.collections.nodes]));
+      const newResources = [...resources, ...fetcher.data.products.nodes];
+      setResources(newResources);
 
       // Select first resource, if nothing selected.
-      if (!selectedResource && (fetcher.data.collections.nodes.length > 0)) setSelectedResource(fetcher.data.collections.nodes[0]);
+      if (!selectedResource && (fetcher.data.products.nodes.length > 0)) setSelectedResource(fetcher.data.products.nodes[0]);
+    } else {
+      setCursor(''); // Disable loading
     }
   }, [fetcher.data]);
+
+  useEffect(() => {
+    let showingResources = resources.slice(page * perPage, (page + 1) * perPage);
+    if (selectedResource) {
+      const isIncluded = showingResources.some((x) => (x.handle == selectedResource?.handle));
+      if (!isIncluded) {
+        showingResources = [selectedResource, ...showingResources];
+      }
+    }
+    setPagedResources(showingResources);
+  }, [resources, page]);
 
   useEffect(() => {
     if (init) {
@@ -173,26 +199,65 @@ export default function App() {
     }
   }, [init]);
 
-  function loadCollections(cursor:string = '') {
-    if (!isFirstLoad && isLastPage) return;
+  const loadProducts = (props:{}) => {
+    // if (!isFirstLoad && isLastPage) return;
+    setIsResourceLoading(true);
     const data = {
-      cursor,
+      cursor: props.cursor,
+      perPage: props.perPage,
+      status: props.status,
       action: 'list',
     };
+    console.log('submitting...');
     fetcher.submit(data, { method: "post" });
     // submit(data, { method: "post" });
-  }
+  };
+
+  const loadProductsByState = () => {
+    loadProducts({cursor, perPage, status: filterStatus});
+  };
 
   useEffect(() => {
-    if (isFirstLoad || shouldLoad) loadCollections();
-  }, [isFirstLoad, shouldLoad]);
+    console.log('Is first load?', isFirstLoad, 'Should load?', shouldLoad, 'Is last page?', isLastPage, cursor, page);
+    if (isFirstLoad || shouldLoad) loadProductsByState();
+  }, [resources, page]);
 
   const filters = [
-    {value: 'all', label: 'All'},
-    {value: 'active', label: 'Active'},
-    {value: 'draft', label: 'Draft'},
-    {value: 'archived', label: 'Archived'},
+    {value: '', label: 'All'},
+    {value: 'ACTIVE', label: 'Active'},
+    {value: 'DRAFT', label: 'Draft'},
+    {value: 'ARCHIVED', label: 'Archived'},
   ]
+
+  const renderItem = (item:{}) => {
+    return (
+      <a 
+        className='justClickable' 
+        href="#" 
+        onClick={(e) => {
+          e.preventDefault();
+          // TODO - load translation
+          setSelectedResource(item);
+        }}>
+        <InlineStack gap='100' wrap={false}>
+          {item.image ? (
+            <Thumbnail
+              source={item.image.preview.image.url + '&width=24'}
+              size="extraSmall"
+              alt={item.title}
+            />
+          ) : (
+            <Thumbnail
+              source={ImageIcon}
+              size="extraSmall"
+              alt={item.title}
+            />
+          )}
+          <Text as='p' variant='headingSm'>{item.title}</Text>
+        </InlineStack>
+      </a>
+    )
+  }
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
 
@@ -252,12 +317,11 @@ export default function App() {
           <div className='fullscreenLayout withTopBar'>
             <Layout>
               <Layout.Section variant='oneThird'>
-                <div style={{background:'#fff',height:'100%',overflow:'auto'}}>
-                  <BlockStack>
-                    
+                <div style={{background:'#fff',height:'100%',overflow:'auto',position:'relative'}}>
+                    {isResourceLoading && (<LoadingScreen position='absolute' />)}
                     <Box padding='200'>
                       <InlineStack align='space-between' blockAlign='center'>
-                        <Text as='p'>Showing 13 of 50 Items</Text>
+                        <Text as='p'>Showing {pagedResources.length} of {knownTotalPage} Items</Text>
                         <CheckListPop 
                           label={<Button icon={FilterIcon} accessibilityLabel='Filter' />} 
                           multiple={false} 
@@ -265,7 +329,15 @@ export default function App() {
                           checked={filters.length > 0 ? [filters[0].value] : []}
                           onChange={(selected: string) => {
                             // TODO
+                            setFilterStatus(selected[0]);
                             console.log(selected);
+                            // Initialize
+                            setPage(0);
+                            setCursor('');
+                            setResources([]);
+                            // setSelectedResource(false);
+                            console.log('refreshing...', {cursor: '', perPage, status: selected[0]});
+                            loadProducts({cursor: '', perPage, status: selected[0]});
                           }} 
                         />
                       </InlineStack>
@@ -274,28 +346,46 @@ export default function App() {
                     <Divider/>
 
                     <div style={{height:'calc(100% - 120px',overflow:'auto'}}>
+                      {/* {!isSelectedResourceIn && (
+                        <div 
+                          key={'collection-' + selectedResource.handle}
+                          style={{
+                            background: 'var(--p-color-bg-surface-brand-selected)',
+                            padding: '10px 20px',
+                          }}
+                        >
+                          { renderItem(selectedResource) }
+                        </div>
+                      )}
 
-                      <div 
-                        key={'collection-' + selectedResource.handle}
-                        style={{
-                          background: 'var(--p-color-bg-surface-brand-selected)',
-                          padding: '10px 20px',
-                        }}
-                      >{selectedResource.title}</div>
-
-                      { pagedResources.map((x, i) => (x.handle != selectedResource.handle) && (
+                      { (pagedResources.length > 0) ? pagedResources.map((x, i) => (
                         <div 
                           key={'collection-' + x.handle}
                           style={{
+                            background: (x.handle == selectedResource.handle) ? 'var(--p-color-bg-surface-brand-selected)' : 'transparent',
                             padding: '10px 20px',
                           }}
-                        >{x.title} Lalala</div>
-                      ))}
+                        >
+                          { renderItem(x) }
+                        </div>
+                      )) : <SkeletonResources />} */}
+
+                      { (pagedResources.length > 0) ? pagedResources.map((x, i) => (
+                        <div 
+                          key={'collection-' + x.handle}
+                          style={{
+                            background: (x.handle == selectedResource.handle) ? 'var(--p-color-bg-surface-brand-selected)' : 'transparent',
+                            padding: '10px 20px',
+                          }}
+                        >
+                          { renderItem(x) }
+                        </div>
+                      )) : <SkeletonResources />}
 
                     </div>
                     
                     {((page > 0) || !isLastPage) && (
-                      <Box padding='400'>
+                      <Box padding='400' borderBlockStartWidth='0165' borderColor='border'>
                         <BlockStack inlineAlign='center'>
                           <Pagination
                             hasPrevious = {page > 0}
@@ -304,13 +394,13 @@ export default function App() {
                             }}
                             hasNext = {!isLastPage}
                             onNext={() => {
-                              setPage((prevPage) => Math.min(prevPage + 1, totalPage-1));
+                              setPage((prevPage) => Math.min(prevPage + 1, knownTotalPage-1));
                             }}
                           />
                         </BlockStack>
                       </Box>
                     )}
-                  </BlockStack>
+                  
                 </div>
               </Layout.Section>
               

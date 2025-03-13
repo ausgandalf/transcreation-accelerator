@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a7e12a2610d20e6486de1aa5ea870187"
-application_url = "https://heel-minutes-programming-forget.trycloudflare.com"
+application_url = "https://mud-naples-byte-ft.trycloudflare.com"
 embedded = true
 name = "AI Transcreation"
 handle = "ai-transcreation"
@@ -9,6 +9,7 @@ handle = "ai-transcreation"
 [build]
 include_config_on_deploy = true
 automatically_update_urls_on_dev = true
+dev_store_url = "dept-merch-sandbox.myshopify.com"
 
 [webhooks]
 api_version = "2025-01"
@@ -19,9 +20,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://heel-minutes-programming-forget.trycloudflare.com/auth/callback",
-  "https://heel-minutes-programming-forget.trycloudflare.com/auth/shopify/callback",
-  "https://heel-minutes-programming-forget.trycloudflare.com/api/auth/callback"
+  "https://mud-naples-byte-ft.trycloudflare.com/auth/callback",
+  "https://mud-naples-byte-ft.trycloudflare.com/auth/shopify/callback",
+  "https://mud-naples-byte-ft.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

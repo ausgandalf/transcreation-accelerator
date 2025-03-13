@@ -1,7 +1,7 @@
 import {useState, useEffect, useCallback} from 'react';
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
-import { Form, useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
+import { Form, useLoaderData, useNavigate, useNavigation, useSearchParams } from "@remix-run/react";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { Redirect } from "@shopify/app-bridge/actions";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -95,6 +95,8 @@ export default function App() {
   
   const shopify = useAppBridge();
   
+  const navigate = useNavigate();
+
   const { apiKey, locales, currentLocale, defaultLocale, init, path, translation, shop } = useLoaderData<typeof loader>();
   
   const [isLoaded, setIsLoaded] = useState(false);
@@ -129,10 +131,13 @@ export default function App() {
               // Redirect
               if (x.locale != selectedLocale.locale) {
                 setIsLoading(true);
-                getRedirect(shopify).dispatch(
-                  Redirect.Action.APP,
-                  `/?shopLocale=${x.locale}`,
-                )
+                navigate(`/?shopLocale=${x.locale}`);
+                
+                // getRedirect(shopify).dispatch(
+                //   Redirect.Action.APP,
+                //   `/?shopLocale=${x.locale}`,
+                // )
+                  
               }
             }
           })
@@ -159,10 +164,12 @@ export default function App() {
 
   const goto = (path:string) => {
     setIsLoading(true);
-    getRedirect(shopify).dispatch(
-      Redirect.Action.APP,
-      `${path}?shopLocale=${selectedLocale.locale}`,
-    )
+    navigate(`${path}?shopLocale=${selectedLocale.locale}`);
+
+    // getRedirect(shopify).dispatch(
+    //   Redirect.Action.APP,
+    //   `${path}?shopLocale=${selectedLocale.locale}`,
+    // )
   }
 
   return (

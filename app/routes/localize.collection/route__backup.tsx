@@ -1,8 +1,7 @@
 import {useState, useEffect, useCallback} from 'react';
-import type { HeadersFunction, LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
-import { Outlet, useRouteError, useLoaderData, useNavigate, useNavigation, useActionData, useSubmit, useSearchParams } from "@remix-run/react";
-import { boundary } from "@shopify/shopify-app-remix/server";
+import { Form, useLoaderData, useNavigation, useActionData, useSubmit, useSearchParams } from "@remix-run/react";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { Redirect, Fullscreen } from "@shopify/app-bridge/actions";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -28,15 +27,8 @@ import {
 } from '@shopify/polaris-icons';
 
 import polarisTranslations from "@shopify/polaris/locales/en.json";
-import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
-import appStyles from "../res/style.css?url";
 
-import { authenticate, login } from "../shopify.server";
-
-export const links = () => [
-  { rel: "stylesheet", href: polarisStyles },
-  { rel: "stylesheet", href: appStyles }
-];
+import { authenticate, login } from "../../shopify.server";
 
 import { SelectPop } from 'app/components/SelectPop';
 import { MarketsPop } from 'app/components/MarkertsPop';
@@ -44,6 +36,7 @@ import { LoadingScreen } from 'app/components/LoadingScreen';
 import { getRedirect, getFullscreen } from 'app/components/Functions';
 import { getShopLocales, getShopMarkets } from 'app/api/App';
 
+import { Skeleton } from './skeleton';
 import { sections } from 'app/api/data';
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -99,8 +92,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   return {
-    apiKey: process.env.SHOPIFY_API_KEY || "",
-    translation: polarisTranslations, 
     locales,
     markets,
     currentMarket,
@@ -108,6 +99,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     defaultLocale,
     init: true, 
     path: '/localize/collection', 
+    translation: polarisTranslations, 
     shop: url.searchParams.get("shop")
   };
 };
@@ -145,10 +137,9 @@ export default function App() {
   
   const shopify = useAppBridge();
 
-  const navigate = useNavigate();
   const submit = useSubmit();
 
-  const { apiKey, locales, markets, currentMarket, currentLocale, defaultLocale, init, path, translation, shop } = useLoaderData<typeof loader>();
+  const { locales, markets, currentMarket, currentLocale, defaultLocale, init, path, translation, shop } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
 
   const [isLoaded, setIsLoaded] = useState(false);
@@ -164,18 +155,15 @@ export default function App() {
     nav.state === "submitting" && nav.formData?.get("action") === "delete";
 
   useEffect(() => {
-    // setIsLoading(nav.state === "loading");
-  }, [nav.state, nav.formData])
+    setIsLoading(nav.state === "loading");
+  }, [nav.state])
 
   const onMarketUpdate = (market:string, locale: string) => {
     setIsLoading(true);
-    navigate(`/localize/collection?shopLocale=${locale}&market=${market}`);
-    return;
-
-    // getRedirect(shopify).dispatch(
-    //   Redirect.Action.APP,
-    //   `/localize/collection?shopLocale=${locale}&market=${market}`,
-    // )
+    getRedirect(shopify).dispatch(
+      Redirect.Action.APP,
+      `/localize/collection?shopLocale=${locale}&market=${market}`,
+    )
   }
 
   const renderSections = () => {
@@ -192,12 +180,10 @@ export default function App() {
               // Redirect
               if (y.content != 'Collections') {
                 setIsLoading(true);
-                navigate(`${y.url}?shopLocale=${selectedLocale.locale}`);
-
-                // getRedirect(shopify).dispatch(
-                //   Redirect.Action.APP,
-                //   `${y.url}?shopLocale=${selectedLocale.locale}`,
-                // )
+                getRedirect(shopify).dispatch(
+                  Redirect.Action.APP,
+                  `${y.url}?shopLocale=${selectedLocale.locale}`,
+                )
               }
             }
           })) 
@@ -225,28 +211,82 @@ export default function App() {
     }
   }, [init]);
 
+  function returnHome() {
+    setIsLoading(true);
+    getRedirect(shopify).dispatch(
+      Redirect.Action.APP,
+      `/?shopLocale=${selectedLocale.locale}`,
+    )
+  }
+
   return (
-    <AppProvider i18n={translation} isEmbeddedApp apiKey={apiKey}>
-      {isLoading && (<LoadingScreen />)}
-      <Outlet context={{
-        selectors: 
-          <InlineStack gap='100' align='center'>
-            {renderMarkets()}
-            {renderSections()}
-          </InlineStack>,
-        locale: currentLocale,
-        market: currentMarket,
-      }} />
-      
-    </AppProvider>
+    <Box>
+      {!init || !isLoaded ? (
+        <Skeleton />
+      ) : (
+        <Box>
+          <FullscreenBar onAction={returnHome}>
+            <div
+              style={{
+                display: 'flex',
+                flexGrow: 1,
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingLeft: '1rem',
+                paddingRight: '1rem',
+              }}
+            >
+              <div style={{marginLeft: '1rem', flexGrow: 1}}>
+                <InlineStack gap='100'>
+                  {renderMarkets()}
+                  {renderSections()}
+                </InlineStack>
+              </div>
+              <ButtonGroup>
+                <Button onClick={() => {
+                  getRedirect(shopify).dispatch(
+                    Redirect.Action.REMOTE,
+                    {
+                      url: `https://${shop}`,
+                      newContext: true,
+                    }
+                  )
+                }}>View Store</Button>
+                <Button 
+                  variant="primary" 
+                  onClick={() => {}}>
+                  Save
+                </Button>
+              </ButtonGroup>
+            </div>
+          </FullscreenBar>
+
+          <Page
+            fullWidth
+            title=''
+            titleHidden
+          >
+            {isLoading && (<LoadingScreen />)}
+
+            <Layout>
+              <Layout.Section variant='oneThird'>
+                <BlockStack gap='600'>
+                  Menu
+                </BlockStack>
+              </Layout.Section>
+              
+              <Layout.Section>
+
+                <BlockStack gap='400'>
+                  Content
+                </BlockStack>
+
+              </Layout.Section>  
+            </Layout>
+
+          </Page>
+        </Box>
+      )}
+    </Box>
   );
 }
-
-// Shopify needs Remix to catch some thrown responses, so that their headers are included in the response.
-export function ErrorBoundary() {
-  return boundary.error(useRouteError());
-}
-
-export const headers: HeadersFunction = (headersArgs) => {
-  return boundary.headers(headersArgs);
-};
