@@ -49,7 +49,8 @@ import { sections } from 'app/api/data';
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const { admin, session } = await authenticate.admin(request);
-  
+  const { shop } = session;
+
   let locales = [];
   let markets = [];
   let endLoop = false;
@@ -108,7 +109,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     defaultLocale,
     init: true, 
     path: url.pathname, 
-    shop: url.searchParams.get("shop")
+    shop,
   };
 };
 
@@ -242,10 +243,9 @@ export default function App() {
     currentMarket.locales.some((x) => {
       if (x.locale == currentLocale.locale) {
         shopURL = x.url;
-        return true;
       }
     })
-    // console.log('localize route:', currentLocale, currentMarket);
+    console.log('localize route:', shop, shopURL, currentLocale, currentMarket);
     setIsLoading(false);
   }, [currentLocale, currentMarket]);
 
