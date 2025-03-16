@@ -1,10 +1,10 @@
-import {useState, useEffect, useMemo, useCallback} from 'react';
+import {useState, useEffect, useReducer, useMemo, useCallback} from 'react';
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
 import { useOutletContext, useLoaderData, useNavigate, useNavigation, useFetcher, useActionData, useSubmit, useSearchParams } from "@remix-run/react";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { Redirect, Fullscreen } from "@shopify/app-bridge/actions";
-import { useAppBridge } from "@shopify/app-bridge-react";
+import { useAppBridge, SaveBar } from "@shopify/app-bridge-react";
 
 import {
   Page,
@@ -23,10 +23,12 @@ import {
   Pagination,
   Divider,
   Thumbnail,
+  TextField,
 } from "@shopify/polaris";
 import {
   FilterIcon,
   ImageIcon,
+  ExternalIcon,
 } from '@shopify/polaris-icons';
 
 import polarisTranslations from "@shopify/polaris/locales/en.json";
@@ -36,12 +38,14 @@ import { authenticate, login } from "../../shopify.server";
 import { SelectPop } from 'app/components/SelectPop';
 import { MarketsPop } from 'app/components/MarkertsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { getRedirect, getFullscreen } from 'app/components/Functions';
-import { getProducts } from 'app/api/App';
+import { getRedirect, makeReadable, getFullscreen } from 'app/components/Functions';
+import { getProducts, getProduct, getTranslationsByIds, setTranslations } from 'app/api/App';
 import { CheckListPop } from 'app/components/CheckListPop';
 
-import { Skeleton, SkeletonResources } from './skeleton';
-import { sections } from 'app/api/data';
+import { thStyle, cellStyle, sourceCellStyle, Skeleton, SkeletonResources, SkeletonTranslation, SkeletonTranslationContent } from './skeleton';
+import { transKeys } from 'app/api/data';
+import { validateHeaderName } from 'http';
+
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 
@@ -49,7 +53,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return {
     init: true, 
-    path: '/localize/collection',
+    path: '/localize/product',
   };
 };
 
@@ -63,37 +67,63 @@ export async function action({ request, params }) {
     shop,
   };
 
+  let result:any = {};
   if (data.action == 'list') {
     // Load Collection data
-    let productsData = {};
     let endLoop = false;
     while (!endLoop) {
       try {
-        productsData = await getProducts(admin.graphql, data.cursor, data.status, data.perPage);
+        result = await getProducts(admin.graphql, data.cursor, data.status, data.perPage);
         endLoop = true;
       } catch (e) {}
     }
+  } else if (data.action == 'read') {
+    // Load Product info
+    let product:any = false;
+    let endLoop = false;
+    while (!endLoop) {
+      try {
+        product = await getProduct(admin.graphql, data.id);
+        endLoop = true;
+      } catch (e) {}
+    }
+
+    if (product) {
+      let ids = [ product.id ];
+      product.options.map((x, i) => {
+        ids.push(x.id);
+        x.optionValues.map((y, j) => {
+          ids.push(y.id);
+        })
+      })
     
-    return Response.json({ ...productsData, input:data });
+      // Load Translation data
+      endLoop = !product; // We fetch translation data only when product is found.
+      while (!endLoop) {
+        try {
+          result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
+          endLoop = true;
+        } catch (e) {}
+      }
+    }
+
+    result['product'] = product; // Put product info
+    
+  } else if (data.action == 'submit') {
+    // Load Translation data
+    const translationsObj = JSON.parse(data.translations);
+    for (let i=0; i<translationsObj.length; i++) {
+      let endLoop = false;
+      while (!endLoop) {
+        try {
+          result = await setTranslations(admin.graphql, translationsObj[i].id, translationsObj[i].data);
+          endLoop = true;
+        } catch (e) {}
+      }
+    }
   }
-  
-  // const defaultResponse:ActionDataType = {
-  //   errors: {},
-  //   ticket: false,
-  // };
-  // const errors = validateTicket(data);
 
-  // if (errors) {
-  //   return Response.json({...defaultResponse, errors}, { status: 422 });
-  // }
-
-  // TODO Ticket creation
-  // const ticket = await db.tickets.create({ data });
-  const ticket = {
-    id: 1,
-  };
-
-  return Response.json({ ...defaultResponse, ticket });
+  return Response.json({ ...result, input:data, action:data.action });
 }
 
 export default function App() {
@@ -109,7 +139,7 @@ export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResourceLoading, setIsResourceLoading] = useState(false);
-  
+  const [isTranslationLoading, setIsTranslationLoading] = useState(false);
 
   // const [searchParams, setSearchParams] = useSearchParams();
   
@@ -120,12 +150,54 @@ export default function App() {
     nav.state === "submitting" && nav.formData?.get("action") === "delete";
 
   useEffect(() => {
-    console.log(nav);
+    // console.log(nav);
     // setIsLoading(nav.state === "loading");
   }, [nav])
 
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
+
+  const context = useOutletContext();
+  const [currentLocale, setCurrentLocale] = useState(context.locale);
+  const [currentMarket, setCurrentMarket] = useState(context.market);
+
+  useEffect(() => {
+    setCurrentLocale(context.locale);
+    setCurrentMarket(context.market);
+  }, [context])
+
+  function returnHome() {
+    setIsLoading(true);
+    navigate(`/?shopLocale=${currentLocale.locale}`);
+
+    // getRedirect(shopify).dispatch(
+    //   Redirect.Action.APP,
+    //   `/?shopLocale=${currentLocale.locale}`,
+    // )
+  }
+
+  ///////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////
+
+  function formStateReducer(state, action) {
+    // console.log('reducer....', state, action);
+    if (action.type === 'init') {
+      return structuredClone(action.translations);
+    } else if (action.type === 'setTraslation') {
+      const id = action.id;
+      const key = action.traslation.key;
+      const v = action.traslation.value.trim();
+      if (v == '') {
+        if (key in state[id]) delete state[id][key]; 
+      } else {
+        state[id][key] = {...action.traslation}
+      }
+      return structuredClone(state);
+    }
+    // console.log(state, action);
+    throw Error('Unknown action in formStateReducer() found.');
+  }
+
   const fetcher = useFetcher();
   
   const perPage = 10; // Let's keep this fixed for now
@@ -141,42 +213,162 @@ export default function App() {
   const isFirstLoad = typeof fetcher.data == 'undefined';
   const isLastPage = (cursor == '') && !(page < totalPage - 1);
   const shouldLoad = (cursor != '') && !(page < totalPage);
+  const hasPagination = (page > 0) || !isLastPage;
 
-  // const pagedResources = resources.slice(page * perPage, (page + 1) * perPage);
-  // const isSelectedResourceIn = pagedResources.some((x) => (x.handle == selectedResource?.handle));
-  // const displayingResources = isSelectedResourceIn ? [...pagedResources] : [selectedResource, ...pagedResources];
 
-  // useEffect(() => {
-  //   console.log('cursor:', cursor, 'isLastPage:', isLastPage, resources.length);
-  //   console.log(actionData);
-  //   if (actionData) {
-  //     if (actionData.products.pageInfo.hasNextPage) {
-  //       setCursor(actionData.products.pageInfo.endCursor);
-  //     }
-  //     setResources((oldResources) => ([...oldResources, ...actionData.products.nodes]));
+  const [transData, setTransData] = useState({});
+  const [transDataObject, setTransDataObject] = useState({});
+  const [productInfoIds, setProductInfoIds] = useState({});
+  const [currentTranslateMarketLocale, setCurrentTranslateMarketLocale] = useState('');
 
-  //     // Select first resource, if nothing selected.
-  //     if (!selectedResource && (actionData.products.nodes.length > 0)) setSelectedResource(actionData.products.nodes[0]);
-  //   }
-  // }, [actionData]);
+  const [formState, formStateDispatch] = useReducer(formStateReducer, {});
+  const [cleanFormState, setCleanFormState] = useState({});
+  const isDirty = JSON.stringify(formState) !== JSON.stringify(cleanFormState);
+  useEffect(() => {
+    if (isDirty) {
+      shopify.saveBar.show('translation-save-bar');
+    } else {
+      shopify.saveBar.hide('translation-save-bar');
+    }
+  }, [formState, cleanFormState])
+
+  const getTransSourceObj = (resources: [], key: string) => {
+    let transObj = {};
+    const foundTransObj = resources.some((x) => {
+      if (x.key == key) {
+        transObj = {...x};
+        return true;
+      }
+    })
+    if (!foundTransObj) {
+      // console.log(resources, key);
+      throw Error('Unknown translation key found in getTransSourceObj() funciton.');
+    }
+    return transObj;
+  }
+
+  const updateTranslation = (id: string, key: string, translation: string) => {
+    try {
+      // let transObj = getTransSourceObj(transData[id], key);
+      let transObj = {...transDataObject[id][key]};
+      transObj.locale = currentLocale.locale;
+      transObj.value = translation;
+      transObj.translatableContentDigest = transObj.digest;
+      delete transObj.digest;
+      delete transObj.type;
+
+      formStateDispatch({ 
+        type: 'setTraslation',
+        id: id,
+        traslation: transObj,
+      });
+    } catch (e) {
+      // TODO
+      // console.log(e);
+    }
+  }
+
+  const getTranslatedValue = useCallback((id: string, key: string) => {
+    if ((id in formState) && (key in formState[id])) {
+      return formState[id][key].value;
+    } else {
+      return '';
+    }
+  }, [formState])
+
+  const submitTranslations = () => {
+    var translations = [];
+
+    for (var id in formState) {
+      let trans = [];
+      for (var key in formState[id]) {
+        trans.push(formState[id][key]);
+      }
+      translations.push({
+        id,
+        data: trans
+      });
+    }
+    
+    setIsLoading(true);
+    const data = {
+      translations: JSON.stringify(translations),
+      id: selectedResource.id,
+      market: currentMarket.id,
+      action: 'submit',
+    };
+    // console.log('submitting translations ...', data);
+    fetcher.submit(data, { method: "post" });
+  };
 
   useEffect(() => {
-    setIsResourceLoading(false);
-    console.log(fetcher);
-    if (fetcher.data) {
-      setKnownTotalPage(fetcher.data.total);
-      if (fetcher.data.products.pageInfo.hasNextPage) {
-        setCursor(fetcher.data.products.pageInfo.endCursor);
-      } else {
-        setCursor(''); // Disable loading
-      }
-      const newResources = [...resources, ...fetcher.data.products.nodes];
-      setResources(newResources);
-
-      // Select first resource, if nothing selected.
-      if (!selectedResource && (fetcher.data.products.nodes.length > 0)) setSelectedResource(fetcher.data.products.nodes[0]);
+    // console.log(fetcher);
+    if (!fetcher.data) {
     } else {
-      setCursor(''); // Disable loading
+      if (fetcher.data.action == 'list') {
+        
+        setKnownTotalPage(fetcher.data.total);
+        if (fetcher.data.products.pageInfo.hasNextPage) {
+          setCursor(fetcher.data.products.pageInfo.endCursor);
+        } else {
+          setCursor(''); // Disable loading
+        }
+        const newResources = [...resources, ...fetcher.data.products.nodes];
+        setResources(newResources);
+
+        // Select first resource, if nothing selected.
+        if (!selectedResource && (fetcher.data.products.nodes.length > 0)) selectResource(fetcher.data.products.nodes[0]);
+        
+        // Remove loading anim
+        setIsResourceLoading(false);
+
+      } else if (fetcher.data.action == 'read') {
+        // TODO
+        if (fetcher.data.transdata && (fetcher.data.product.id == selectedResource.id)) {
+
+          setProductInfoIds({...fetcher.data.product});
+          setCurrentTranslateMarketLocale(fetcher.data.input.locale + '-' + fetcher.data.input.market);
+          // Init form state
+          let translatableData = {};
+          let translatableDataObj = {};
+          let transData = {};
+          fetcher.data.transdata.map((x, i) => {
+            
+            translatableData[x.resourceId] = structuredClone(x.translatableContent);
+
+            translatableDataObj[x.resourceId] = {};
+            x.translatableContent.map((y, j) => {
+              translatableDataObj[x.resourceId][y.key] = {...y};
+            });
+
+            transData[x.resourceId] = {};
+            x.translations.map((y, j) => {
+              // let obj = getTransSourceObj(x.translatableContent, y.key);
+              let obj = {...translatableDataObj[x.resourceId][y.key]};
+              obj.locale = currentLocale.locale;
+              obj.value = y.value;
+              obj.translatableContentDigest = obj.digest;
+              delete obj.digest;
+              delete obj.type;
+              transData[x.resourceId][y.key] = {...obj};
+            });
+          });
+
+          setTransData(translatableData);
+          setTransDataObject(translatableDataObj);
+
+          formStateDispatch({type: 'init', translations: transData});
+          setCleanFormState(transData);
+          
+          // Remove loading anim
+          setIsTranslationLoading(false);
+        }
+      } else if (fetcher.data.action == 'submit') {
+        // TODO
+        setCleanFormState(structuredClone(formState));
+        setIsLoading(false);
+        shopify.toast.show("The translations have been saved.", {duration: 2000});
+      }
     }
   }, [fetcher.data]);
 
@@ -191,11 +383,20 @@ export default function App() {
     setPagedResources(showingResources);
   }, [resources, page]);
 
+
+  useEffect(() => {
+    // console.log('reload by market, locale change...');
+    if (selectedResource) {
+      if (currentTranslateMarketLocale != (currentLocale.locale + '-' + currentMarket.id))
+        selectResource(selectedResource); // Reload translation data
+    }
+  }, [currentMarket, currentLocale]);
+
   useEffect(() => {
     if (init) {
       setTimeout(() => {
         setIsLoaded(true);
-      }, 1000);
+      }, 0);
     }
   }, [init]);
 
@@ -208,7 +409,7 @@ export default function App() {
       status: props.status,
       action: 'list',
     };
-    console.log('submitting...');
+    // console.log('list products...');
     fetcher.submit(data, { method: "post" });
     // submit(data, { method: "post" });
   };
@@ -218,9 +419,49 @@ export default function App() {
   };
 
   useEffect(() => {
-    console.log('Is first load?', isFirstLoad, 'Should load?', shouldLoad, 'Is last page?', isLastPage, cursor, page);
+    // console.log('Is first load?', isFirstLoad, 'Should load?', shouldLoad, 'Is last page?', isLastPage, cursor, page);
     if (isFirstLoad || shouldLoad) loadProductsByState();
   }, [resources, page]);
+
+  const selectResource = (item) => {
+    setSelectedResource(item);
+    setIsTranslationLoading(true);
+    const data = {
+      id: item.id,
+      locale: currentLocale.locale,
+      market: currentMarket.id,
+      action: 'read',
+    };
+    // console.log('Read translation data...');
+    fetcher.submit(data, { method: "post" });
+  }
+
+  function getLanguageLabel(locale:string) {
+    let label = '';
+    context.locales.some((x, i) => {
+      if (x.locale == locale) {
+        label = x.name;
+        return true;
+      }
+    })
+    return label;
+  }
+
+  function getKeyLabel(key:string) {
+    if (key in transKeys) {
+      return transKeys[key].label;
+    } else {
+      return makeReadable(key);
+    }
+  }
+
+  function getKeyType(key:string) {
+    if (key in transKeys) {
+      return transKeys[key].type;
+    } else {
+      return 'text';
+    }
+  }
 
   const filters = [
     {value: '', label: 'All'},
@@ -237,7 +478,7 @@ export default function App() {
         onClick={(e) => {
           e.preventDefault();
           // TODO - load translation
-          setSelectedResource(item);
+          selectResource(item);
         }}>
         <InlineStack gap='100' wrap={false}>
           {item.image ? (
@@ -260,17 +501,6 @@ export default function App() {
   }
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
-
-  const context = useOutletContext();
-  function returnHome() {
-    setIsLoading(true);
-    navigate(`/?shopLocale=${context.locale.locale}`);
-
-    // getRedirect(shopify).dispatch(
-    //   Redirect.Action.APP,
-    //   `/?shopLocale=${context.locale.locale}`,
-    // )
-  }
 
   return (
     <Box>
@@ -299,14 +529,18 @@ export default function App() {
                     getRedirect(shopify).dispatch(
                       Redirect.Action.REMOTE,
                       {
-                        url: `https://${shop}`,
+                        url: context.shop,
                         newContext: true,
                       }
                     )
                   }}>View Store</Button>
                   <Button 
                     variant="primary" 
-                    onClick={() => {}}>
+                    onClick={() => {
+                      submitTranslations();
+                    }}
+                    disabled = {!isDirty}
+                    >
                     Save
                   </Button>
                 </ButtonGroup>
@@ -330,13 +564,13 @@ export default function App() {
                           onChange={(selected: string) => {
                             // TODO
                             setFilterStatus(selected[0]);
-                            console.log(selected);
+
                             // Initialize
                             setPage(0);
                             setCursor('');
                             setResources([]);
-                            // setSelectedResource(false);
-                            console.log('refreshing...', {cursor: '', perPage, status: selected[0]});
+
+                            // console.log('refreshing...', {cursor: '', perPage, status: selected[0]});
                             loadProducts({cursor: '', perPage, status: selected[0]});
                           }} 
                         />
@@ -345,34 +579,14 @@ export default function App() {
 
                     <Divider/>
 
-                    <div style={{height:'calc(100% - 120px',overflow:'auto'}}>
-                      {/* {!isSelectedResourceIn && (
-                        <div 
-                          key={'collection-' + selectedResource.handle}
-                          style={{
-                            background: 'var(--p-color-bg-surface-brand-selected)',
-                            padding: '10px 20px',
-                          }}
-                        >
-                          { renderItem(selectedResource) }
-                        </div>
-                      )}
+                    <div style={{
+                      height: hasPagination ? 'calc(100% - 110px' : 'calc(100% - 50px',
+                      overflow:'auto',
+                    }}>
 
                       { (pagedResources.length > 0) ? pagedResources.map((x, i) => (
                         <div 
-                          key={'collection-' + x.handle}
-                          style={{
-                            background: (x.handle == selectedResource.handle) ? 'var(--p-color-bg-surface-brand-selected)' : 'transparent',
-                            padding: '10px 20px',
-                          }}
-                        >
-                          { renderItem(x) }
-                        </div>
-                      )) : <SkeletonResources />} */}
-
-                      { (pagedResources.length > 0) ? pagedResources.map((x, i) => (
-                        <div 
-                          key={'collection-' + x.handle}
+                          key={'product-' + x.handle}
                           style={{
                             background: (x.handle == selectedResource.handle) ? 'var(--p-color-bg-surface-brand-selected)' : 'transparent',
                             padding: '10px 20px',
@@ -384,7 +598,7 @@ export default function App() {
 
                     </div>
                     
-                    {((page > 0) || !isLastPage) && (
+                    {(hasPagination) && (
                       <Box padding='400' borderBlockStartWidth='0165' borderColor='border'>
                         <BlockStack inlineAlign='center'>
                           <Pagination
@@ -405,11 +619,207 @@ export default function App() {
               </Layout.Section>
               
               <Layout.Section>
+                <div style={{height:'100%',overflow:'auto',position:'relative'}}>
 
-                <BlockStack gap='400'>
-                  Content
-                </BlockStack>
+                  {isTranslationLoading && (<LoadingScreen position='absolute' />)}
 
+                  <Box padding='400'>
+                    {(selectedResource) ? (
+                      <BlockStack gap='400'>
+                        <InlineStack align='space-between' blockAlign='center'>
+                          <InlineStack gap='100'>
+                            {selectedResource.image ? (
+                              <Thumbnail
+                                source={selectedResource.image.preview.image.url + '&width=24'}
+                                size="small"
+                                alt={selectedResource.title}
+                              />
+                            ) : (
+                              <Thumbnail
+                                source={ImageIcon}
+                                size="small"
+                                alt={selectedResource.title}
+                              />
+                            )}
+
+                            <a className='link--external' href="#" onClick={(e) => {
+                              e.preventDefault();
+                              getRedirect(shopify).dispatch(
+                                Redirect.Action.ADMIN_SECTION, {
+                                  section: {
+                                    name: Redirect.ResourceType.Product,
+                                    resource: {
+                                      id: selectedResource.id.split('/').pop(),
+                                    },
+                                  },
+                                  newContext: true,
+                                }
+                              )
+                            }}>
+                              <InlineStack wrap={false} gap='200'>
+                                <Text as='h2' variant='headingLg'>{selectedResource.title}</Text>
+                                <Icon source={ExternalIcon} />
+                              </InlineStack>
+                            </a>
+                          </InlineStack>
+                          <Box>
+                            <Button variant='secondary'>Auto-translate</Button>
+                          </Box>
+
+                        </InlineStack>
+
+                        {isTranslationLoading ? (<SkeletonTranslationContent />) : (
+                          <BlockStack gap='400'>
+                          
+                            <Card padding='0'>
+                              <table width='100%' cellSpacing='0' cellPadding='0'>
+                                <thead>
+                                  <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}>
+                                    <Text as="p" variant="headingMd" alignment="start">Product</Text>
+                                  </th></tr>
+                                  <tr>
+                                    <th style={thStyle}></th>
+                                    <th style={thStyle}><Text as='p' tone='subdued' alignment='start'>Reference</Text></th>
+                                    <th style={thStyle}><Text as='p' tone='subdued' alignment='start'>{currentLocale.name}</Text></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {transData[productInfoIds.id].map((x, i) => (
+                                    <tr key={'transmain-tr--' + i}>
+                                      <td width='20%' style={cellStyle}>
+                                        <BlockStack gap='100'>
+                                          <Text as='p' variant='headingSm'>{getKeyLabel(x.key)}</Text>
+                                          <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(x.locale)}</Text>
+                                        </BlockStack>
+                                      </td>
+                                      <td width='40%' style={{...cellStyle, ...sourceCellStyle}}>
+                                        {(x.type == 'HTML') ? (
+                                          <div>{x.value}</div>
+                                        ) : (
+                                          <Text as='p'>{x.value}</Text>
+                                        )}
+                                      </td>
+                                      <td width='40%' style={cellStyle}>
+                                        {(x.type == 'HTML') ? (
+                                          <div></div>
+                                        ) : (
+                                          <TextField
+                                            label={"Translation for " + getLanguageLabel(currentLocale.locale)}
+                                            labelHidden
+                                            value={getTranslatedValue(productInfoIds.id, x.key)} 
+                                            onChange={(value:string) => {
+                                              updateTranslation(productInfoIds.id, x.key, value);
+                                            }}
+                                            autoComplete="off"
+                                          />
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </Card>
+
+                            <Card padding='0'>
+                              <table width='100%' cellSpacing='0' cellPadding='0'>
+                                <thead>
+                                  <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}>
+                                    <Text as="p" variant="headingMd" alignment="start">Product options</Text>
+                                  </th></tr>
+                                  <tr>
+                                    <th style={thStyle}></th>
+                                    <th style={thStyle}><Text as='p' tone='subdued'>Reference</Text></th>
+                                    <th style={thStyle}><Text as='p' tone='subdued'>{currentLocale.name}</Text></th>
+                                  </tr>
+                                </thead>
+                                
+                                {productInfoIds.options.map((x, i) => (
+                                  <tbody>
+                                    <tr key={'transopt-tr--' + i}>
+                                      <td width='20%' style={cellStyle}>
+                                        <BlockStack gap='100'>
+                                          <Text as='p' variant='headingSm'>Option name</Text>
+                                          <Text as='p' tone='subdued' variant='bodySm'>{x.name}</Text>
+                                          {/* <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(transDataObject[x.id]['name'].locale)}</Text> */}
+                                        </BlockStack>
+                                      </td>
+                                      <td width='40%' style={{...cellStyle, ...sourceCellStyle}}>
+                                        {(x.type == 'HTML') ? (
+                                          <div>{transDataObject[x.id]['name'].value}</div>
+                                        ) : (
+                                          <Text as='p'>{transDataObject[x.id]['name'].value}</Text>
+                                        )}
+                                      </td>
+                                      <td width='40%' style={cellStyle}>
+                                        {(x.type == 'HTML') ? (
+                                          <div></div>
+                                        ) : (
+                                          <TextField
+                                            label={"Translation for " + getLanguageLabel(currentLocale.locale)}
+                                            labelHidden
+                                            value={getTranslatedValue(x.id, 'name')} 
+                                            onChange={(value:string) => {
+                                              updateTranslation(x.id, 'name', value);
+                                            }}
+                                            autoComplete="off"
+                                          />
+                                        )}
+                                      </td>
+                                    </tr>
+
+                                    {x.optionValues.map((ov,j) => (
+                                      <tr key={'transopt-tr-ov--' + i + '-' + j}>
+                                        {(j==0) && (
+                                          <td width='20%' style={cellStyle} rowSpan={x.optionValues.length}>
+                                            <BlockStack gap='100'>
+                                              <Text as='p' variant='headingSm'>Option value(s)</Text>
+                                              <Text as='p' tone='subdued' variant='bodySm'>{x.name}</Text>
+                                              {/* <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(transDataObject[x.id]['name'].locale)}</Text> */}
+                                            </BlockStack>
+                                          </td>
+                                        )}
+
+                                        <td width='40%' style={{...cellStyle, ...sourceCellStyle}}>
+                                          {(ov.type == 'HTML') ? (
+                                            <div>{transDataObject[ov.id]['name'].value}</div>
+                                          ) : (
+                                            <Text as='p'>{transDataObject[ov.id]['name'].value}</Text>
+                                          )}
+                                        </td>
+                                        <td width='40%' style={cellStyle}>
+                                          {(ov.type == 'HTML') ? (
+                                            <div></div>
+                                          ) : (
+                                            <TextField
+                                              label={"Translation for " + getLanguageLabel(currentLocale.locale)}
+                                              labelHidden
+                                              value={getTranslatedValue(ov.id, 'name')} 
+                                              onChange={(value:string) => {
+                                                updateTranslation(ov.id, 'name', value);
+                                              }}
+                                              autoComplete="off"
+                                            />
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                ))}
+                              </table>
+                            </Card>
+                            
+                      
+                          </BlockStack>
+                        )}
+
+
+                      </BlockStack>
+                    ) : (
+                      <SkeletonTranslation />
+                    )}
+                    
+                  </Box>
+                </div>
               </Layout.Section>  
             </Layout>
           </div>
@@ -417,6 +827,18 @@ export default function App() {
 
         </Box>
       )}
+
+      <SaveBar id="translation-save-bar">
+        <button variant="primary" onClick={() => {
+          submitTranslations();
+          shopify.saveBar.hide('translation-save-bar');
+        }}></button>
+        <button id="discard-button" onClick={() => {
+          formStateDispatch({type: 'init', translations: cleanFormState});
+          shopify.saveBar.hide('translation-save-bar');
+        }}></button>
+      </SaveBar>
+
     </Box>
   );
 }

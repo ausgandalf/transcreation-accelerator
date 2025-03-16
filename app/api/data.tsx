@@ -80,3 +80,14 @@ export const guideData = [
     content: `Move between all of your store's translatable and customizable content. Polish up and publish for your customers, wherever they are.`,
   }
 ]
+
+export const transKeys = {
+  'body_html': {
+    label: 'Description',
+    type: 'html',
+  },
+  'handle': {
+    label: 'URL handle',
+    type: 'text',
+  }
+}

@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a7e12a2610d20e6486de1aa5ea870187"
-application_url = "https://mud-naples-byte-ft.trycloudflare.com"
+application_url = "https://prague-horizontal-clients-lower.trycloudflare.com"
 embedded = true
 name = "AI Transcreation"
 handle = "ai-transcreation"
@@ -16,13 +16,13 @@ api_version = "2025-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_locales,read_locations,read_markets,read_metaobject_definitions,read_metaobjects,read_online_store_navigation,read_online_store_pages,read_orders,read_privacy_settings,read_shipping,read_themes,read_translations,write_products,write_themes"
+scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_locales,read_locations,read_markets,read_metaobject_definitions,read_metaobjects,read_online_store_navigation,read_online_store_pages,read_orders,read_privacy_settings,read_shipping,read_themes,read_translations,write_translations,write_products,write_themes"
 
 [auth]
 redirect_urls = [
-  "https://mud-naples-byte-ft.trycloudflare.com/auth/callback",
-  "https://mud-naples-byte-ft.trycloudflare.com/auth/shopify/callback",
-  "https://mud-naples-byte-ft.trycloudflare.com/api/auth/callback"
+  "https://prague-horizontal-clients-lower.trycloudflare.com/auth/callback",
+  "https://prague-horizontal-clients-lower.trycloudflare.com/auth/shopify/callback",
+  "https://prague-horizontal-clients-lower.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

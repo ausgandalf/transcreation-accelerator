@@ -83,10 +83,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     });
   } else {
-    throw redirect(`/localize/collection?${url.searchParams.toString()}&shopLocale=${currentLocale.locale}`);
+    throw redirect(`${url.pathname}?${url.searchParams.toString()}&shopLocale=${currentLocale.locale}`);
   }
 
-  let currentMarket = {handle: '', name: '', locales: []};
+  let currentMarket = {id:'', handle: '', name: '', locales: []};
 
   if (url.searchParams.get("market")) {
     const marketHandle = url.searchParams.get("market");
@@ -107,7 +107,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     currentLocale,
     defaultLocale,
     init: true, 
-    path: '/localize/collection', 
+    path: url.pathname, 
     shop: url.searchParams.get("shop")
   };
 };
@@ -153,9 +153,6 @@ export default function App() {
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedMarket, setSelectedMarket] = useState(currentMarket);
-  const [selectedLocale, setSelectedLocale] = useState(currentLocale);
-  // const [searchParams, setSearchParams] = useSearchParams();
   
   const nav = useNavigation();
   const isSaving =
@@ -164,39 +161,53 @@ export default function App() {
     nav.state === "submitting" && nav.formData?.get("action") === "delete";
 
   useEffect(() => {
+    console.log('PATH:', path);
     // setIsLoading(nav.state === "loading");
   }, [nav.state, nav.formData])
 
   const onMarketUpdate = (market:string, locale: string) => {
     setIsLoading(true);
-    navigate(`/localize/collection?shopLocale=${locale}&market=${market}`);
+    let url = `${path}?shopLocale=${locale}`;
+    if (market) url += `&market=${market}`;
+    navigate(url);
     return;
-
-    // getRedirect(shopify).dispatch(
-    //   Redirect.Action.APP,
-    //   `/localize/collection?shopLocale=${locale}&market=${market}`,
-    // )
   }
+
+  let paths:Array<Object> = [];
+  sections.map((x, i) => (
+    x.items.map((y, i) => paths.push(y))
+  ));
+  
+  const pathLabel = useCallback(() => {
+    let label = '';
+    paths.some((x) => {
+      if (x.url == path) {
+        label = x.content;
+        return true;
+      }
+    })
+    return label;
+  }, [path]);
 
   const renderSections = () => {
  
     return (<SelectPop 
-      label='Collections'
-      variant='bodyMd'
+      label={pathLabel()}
+      variant='headingMd'
       sections={sections.map(
         (x, i) => ({...x,
           items: x.items.map((y, j) => ({
             content: y.content,
-            active: y.content == 'Collections',
+            active: y.content == pathLabel(),
             onAction: () => {
               // Redirect
-              if (y.content != 'Collections') {
+              if (y.content != pathLabel()) {
                 setIsLoading(true);
-                navigate(`${y.url}?shopLocale=${selectedLocale.locale}`);
+                navigate(`${y.url}?shopLocale=${currentLocale.locale}`);
 
                 // getRedirect(shopify).dispatch(
                 //   Redirect.Action.APP,
-                //   `${y.url}?shopLocale=${selectedLocale.locale}`,
+                //   `${y.url}?shopLocale=${currentLocale.locale}`,
                 // )
               }
             }
@@ -207,12 +218,13 @@ export default function App() {
 
   const renderMarkets = () => {
     return (<MarketsPop
-      variant='bodyMd'
+      key={currentLocale.locale + '-' + currentMarket.handle}
+      variant='headingMd'
       locales={locales}
       defaultLocale={defaultLocale}
       markets={markets}
-      currentLocale={selectedLocale}
-      currentMarket={selectedMarket}
+      currentLocale={currentLocale}
+      currentMarket={currentMarket}
       update={onMarketUpdate}
     />)
   }
@@ -221,9 +233,23 @@ export default function App() {
     if (init) {
       setTimeout(() => {
         setIsLoaded(true);
-      }, 1000);
+      }, 0);
     }
   }, [init]);
+
+  let shopURL = `https://${shop}`;
+  useEffect(() => {
+    currentMarket.locales.some((x) => {
+      if (x.locale == currentLocale.locale) {
+        shopURL = x.url;
+        return true;
+      }
+    })
+    // console.log('localize route:', currentLocale, currentMarket);
+    setIsLoading(false);
+  }, [currentLocale, currentMarket]);
+
+
 
   return (
     <AppProvider i18n={translation} isEmbeddedApp apiKey={apiKey}>
@@ -236,8 +262,9 @@ export default function App() {
           </InlineStack>,
         locale: currentLocale,
         market: currentMarket,
+        locales,
+        shop: shopURL,
       }} />
-      
     </AppProvider>
   );
 }

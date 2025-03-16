@@ -29,3 +29,8 @@
   color: inherit;
   text-decoration: none;
 }
+
+.link--external { color: inherit; text-decoration: none;}
+.link--external .Polaris-Text--root + .Polaris-Icon {display: none;}
+.link--external:hover { text-decoration: underline; }
+.link--external:hover .Polaris-Text--root + .Polaris-Icon {display: block;}

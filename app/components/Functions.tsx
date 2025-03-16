@@ -63,3 +63,9 @@ export const isArrayHasAny = (arr:[], target:[]) => target.some(v => arr.include
 export const tooltip = (tip: string) => {
   return <Tooltip content={tip}><Icon source={QuestionCircleIcon} /></Tooltip>
 }
+
+export const makeReadable = (text:string) => {
+  return text.replaceAll('_', ' ').split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
