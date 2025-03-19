@@ -18,13 +18,24 @@ export const getRedirect = (shopify) => {
   return redirect;
 }
 
-export const getFullscreen = (shopify) => {
+export const getFullscreen = (shopify):Fullscreen.Fullscreen => {
   const app = createApp({
     apiKey: shopify.config.apiKey,
     host: shopify.config.host,
     forceRedirect: true,
   });
   const fullscreen = Fullscreen.create(app);
+  return fullscreen;
+}
+export const enterFullscreen = (fullscreen:Fullscreen.Fullscreen) => {
+  fullscreen && fullscreen.dispatch(Fullscreen.Action.ENTER);
+}
+export const exitFullscreen = (fullscreen:Fullscreen.Fullscreen) => {
+  fullscreen && fullscreen.dispatch(Fullscreen.Action.EXIT);
+}
+export const makeFullscreen = (shopify) => {
+  const fullscreen:Fullscreen.Fullscreen = getFullscreen(shopify);
+  fullscreen.dispatch(Fullscreen.Action.ENTER);
   return fullscreen;
 }
 

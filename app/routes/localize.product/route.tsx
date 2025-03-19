@@ -29,6 +29,7 @@ import {
   FilterIcon,
   ImageIcon,
   ExternalIcon,
+  MaximizeIcon,
 } from '@shopify/polaris-icons';
 
 import polarisTranslations from "@shopify/polaris/locales/en.json";
@@ -38,7 +39,7 @@ import { authenticate, login } from "../../shopify.server";
 import { SelectPop } from 'app/components/SelectPop';
 import { MarketsPop } from 'app/components/MarkertsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { getRedirect, makeReadable, getFullscreen } from 'app/components/Functions';
+import { getRedirect, makeReadable, enterFullscreen, exitFullscreen } from 'app/components/Functions';
 import { getProducts, getProduct, getTranslationsByIds, setTranslations } from 'app/api/App';
 import { CheckListPop } from 'app/components/CheckListPop';
 
@@ -506,6 +507,7 @@ export default function App() {
   const renderTransSource = (type: string, value:string) => {
     if (type == 'HTML') {
       return (<Editor text={value} readOnly={true}/>)
+      return;
     } else {
       return (
         <Text as='p'>{value}</Text>
@@ -516,6 +518,7 @@ export default function App() {
   const renderTransEditor = (type: string, id:string, key:string) => {
     if (type == 'HTML') {
       return (<Editor text={getTranslatedValue(id, key)} onChange={(text:string) => updateTranslation(id, key, text)}/>)
+      return;
     } else {
       return (
         // Single line text
@@ -580,8 +583,8 @@ export default function App() {
 
           <div className='fullscreenLayout withTopBar'>
             <div className='layout layout--translate'>
-              <div>
-                <div style={{background:'#fff',height:'100%',overflow:'auto',position:'relative'}}>
+              <div className='layout__section layout__section--resource'>
+                <div className='panel panel--resource' style={{background:'#fff',height:'100%', position:'relative'}}>
                     {isResourceLoading && (<LoadingScreen position='absolute' />)}
                     <Box padding='200'>
                       <InlineStack align='space-between' blockAlign='center'>
@@ -648,7 +651,7 @@ export default function App() {
                 </div>
               </div>
               
-              <div>
+              <div className='layout__section layout__section--translate'>
                 <div style={{height:'100%',overflow:'auto',position:'relative'}}>
 
                   {isTranslationLoading && (<LoadingScreen position='absolute' />)}

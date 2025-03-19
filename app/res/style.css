@@ -26,10 +26,66 @@
   top: 57px;
 }
 
-.fullscreenLayout .layout--translate > div {
+.fullscreenLayout .layout__section {
   height: 100%;
   margin: 0;
   overflow: auto;
+}
+
+@keyframes drawerClosing {
+  0% {transform: translateX(calc(-100% + 8px));}
+  25% {transform: translateX(0);}
+  75% {transform: translateX(0);}
+  100% {transform: translateX(calc(-100% + 8px));}
+}
+
+@media (max-width: 1160px) {
+  .layout--translate {
+    grid-template-columns: 0 1fr;
+  }
+  .fullscreenLayout .layout__section.layout__section--resource {
+    overflow: visible;
+  }
+  .layout--translate .panel--resource {
+    animation: drawerClosing 2s ease-in-out 1s;
+    position: absolute;
+    width: 300px;
+    z-index: 5;
+    transform: translateX(calc(-100% + 8px));
+    transition: transform .2s ease-in-out;
+    border-right: solid 2px var(--p-color-border-secondary);
+  }
+  .layout--translate .panel--resource:hover {
+    transform: translateX(0);
+  }
+  .layout--translate .panel--resource:before {
+    content: "";
+    width: 8px;
+    height: 100%;
+    top: 0;
+    display: block;
+    position: absolute;
+    right: 0;
+    background: #fff;
+  }
+  .layout--translate .panel--resource:hover::before {
+    display: none;
+  }
+  .layout--translate .panel--resource:after {
+    content: "";
+    width: 20px;
+    height: 200px;
+    top: 50%;
+    transform: translate(100%, -50%);
+    display: block;
+    position: absolute;
+    right: 0;
+    background: rgb(255,255,255);
+    background: linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(231,231,231,1) 25%, rgba(203,203,203,1) 50%, rgba(214,214,214,1) 100%);
+    border: solid 1px var(--p-color-border-secondary);
+    border-left: none;
+    border-radius: 0 100px 100px 0;
+  }
 }
 
 .justClickable, .justClickable:hover {
@@ -48,6 +104,14 @@
   min-width: 100%;
 }
 
+
+
+@media (max-width: 768px) {
+  .table--translate {
+    grid-template-columns: 1fr;
+  }
+}
+
 .table--translate thead, 
 .table--translate tbody, 
 .table--translate tr {
@@ -58,6 +122,7 @@
   overflow: hidden;
   width: 100%;
 }
+.table--translate td {min-height: 45px;}
 
 .table--translate .cell--target textarea {
   border: solid 1px transparent;

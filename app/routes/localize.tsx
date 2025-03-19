@@ -4,8 +4,8 @@ import { redirect } from "@remix-run/node";
 import { Outlet, useRouteError, useLoaderData, useNavigate, useNavigation, useActionData, useSubmit, useSearchParams } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
+import {useAppBridge} from '@shopify/app-bridge-react';
 import { Redirect, Fullscreen } from "@shopify/app-bridge/actions";
-import { useAppBridge } from "@shopify/app-bridge-react";
 
 import {
   Page,
@@ -41,7 +41,7 @@ export const links = () => [
 import { SelectPop } from 'app/components/SelectPop';
 import { MarketsPop } from 'app/components/MarkertsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { getRedirect, getFullscreen } from 'app/components/Functions';
+import { getRedirect, getFullscreen, enterFullscreen, exitFullscreen } from 'app/components/Functions';
 import { getShopLocales, getShopMarkets } from 'app/api/App';
 
 import { sections } from 'app/api/data';
@@ -145,7 +145,6 @@ export async function action({ request, params }) {
 export default function App() {
   
   const shopify = useAppBridge();
-
   const navigate = useNavigate();
   const submit = useSubmit();
 
@@ -249,11 +248,10 @@ export default function App() {
     setIsLoading(false);
   }, [currentLocale, currentMarket]);
 
-
-
   return (
     <AppProvider i18n={translation} isEmbeddedApp apiKey={apiKey}>
       {isLoading && (<LoadingScreen />)}
+
       <Outlet context={{
         selectors: 
           <InlineStack gap='100' align='center'>
@@ -265,6 +263,7 @@ export default function App() {
         locales,
         shop: shopURL,
       }} />
+
     </AppProvider>
   );
 }

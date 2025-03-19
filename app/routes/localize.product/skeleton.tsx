@@ -125,10 +125,6 @@ export const SkeletonTranslationContent = () => {
 export const Skeleton = () => {
   return (
     <Box minHeight='100%'>
-      <Box background="bg-surface" padding='400'>
-        <SkeletonBodyText lines={1} />
-      </Box>
-
       <div className='fullscreenLayout withTopBar'>
         <div className='layout layout--translate'>
           <div>

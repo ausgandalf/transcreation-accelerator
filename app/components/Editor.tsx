@@ -43,11 +43,11 @@ export const Editor = (props: EditorProps) => {
           readOnly={readOnly} 
           onChange={(event: ChangeEvent, editor: any) => {
             const data:string = editor.getData();
-            console.log({ event, editor, data });
+            // console.log({ event, editor, data });
             onChange(data);
 
             if (readOnly) {
-              console.log(editor.xtraDatatext);
+              // console.log(editor.xtraDatatext);
               if (editor.xtraData && editor.xtraData.isForcedRollback) {
                 editor.xtraData.isForcedRollback = false;
                 return;
