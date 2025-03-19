@@ -20,6 +20,7 @@ import {
   ImageIcon,
 } from '@shopify/polaris-icons';
 
+import { thStyle, cellStyle, sourceCellStyle, targetCellStyle } from "app/res/style";
 
 export const SkeletonResources = () => {
   return (
@@ -64,25 +65,6 @@ export const SkeletonTranslation = () => {
 
     </BlockStack>
   );
-}
-
-export const thStyle = {
-  borderTop: '1px solid var(--p-color-border-secondary)',
-  padding: 'var(--p-space-300) var(--p-space-300)',
-  backgroundColor: 'var(--p-color-input-bg-surface)',
-  fontWeight: 'var(--p-font-weight-regular)',
-}
-
-export const cellStyle = {
-  borderTop: '1px solid var(--p-color-border-secondary)',
-  padding: 'var(--p-space-300) var(--p-space-300)',
-  fontWeight: 'var(--p-font-weight-regular)',
-}
-
-export const sourceCellStyle = {
-  backgroundColor: 'var(--p-color-bg-surface-secondary)',
-  borderLeft: '1px solid var(--p-color-border-secondary',
-  borderRight: '1px solid var(--p-color-border-secondary',
 }
 
 export const SkeletonTranslationContent = () => {

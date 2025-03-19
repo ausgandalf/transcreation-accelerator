@@ -12,9 +12,9 @@ export const sections = [
     title: 'Online Store',
     items: [
       {content: 'Blog posts', url: '#'},
-      {content: 'Blog titles', url:  '#', suffix: tooltip('Default translations already available in supported languges')},
       {content: 'Blog titles', url:  '#'},
-      {content: 'Cookie banner', url:  '#'},
+      {content: 'Blog titles', url:  '#'},
+      {content: 'Cookie banner', url:  '#', suffix: tooltip('Default translations already available in supported languges')},
       {content: 'Filters', url:  '#'},
       {content: 'Metaobjects', url:  '#'},
       {content: 'Pages', url:  '#'},

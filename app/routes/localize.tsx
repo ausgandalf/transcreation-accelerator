@@ -162,7 +162,7 @@ export default function App() {
     nav.state === "submitting" && nav.formData?.get("action") === "delete";
 
   useEffect(() => {
-    console.log('PATH:', path);
+    // console.log('PATH:', path);
     // setIsLoading(nav.state === "loading");
   }, [nav.state, nav.formData])
 
@@ -245,7 +245,7 @@ export default function App() {
         shopURL = x.url;
       }
     })
-    console.log('localize route:', shop, shopURL, currentLocale, currentMarket);
+    // console.log('localize route:', shop, shopURL, currentLocale, currentMarket);
     setIsLoading(false);
   }, [currentLocale, currentMarket]);
 

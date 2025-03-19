@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+@media print {
+	body {
+		margin: 0 !important;
+	}
+}
+
+.editor-container {
+	width: 100%;
+}
+.editor-container .ck {
+	width: 100%;
+}
+
+.ck.ck-content.ck-editor__editable, 
+.ck-source-editing-area {
+	background-color: transparent;
+	max-height: 250px !important;
+	min-height: 250px !important;
+}
+
+.cell--source .ck.ck-content.ck-editor__editable, 
+.cell--source .ck-source-editing-area textarea {
+	opacity: 0.8;
+}
+.cell--source .ck.ck-content.ck-editor__editable.ck-focused,
+.cell--source .ck-source-editing-area textarea:focus {opacity: 1;}
+.cell--source .ck-source-editing-area textarea {overflow: auto;background-color: transparent;}
+
+
+.ck.ck-toolbar > .ck-toolbar__items > *:not(.ck-toolbar__line-break) {margin-inline: 0;}
+.ck.ck-button, a.ck.ck-button {min-width: 28px;}
+.ck-source-editing-button {padding: 2.34px !important;}
+.ck-source-editing-button .ck-icon {margin-right: 0;}
+.ck-source-editing-button .ck-button__label {display: none !important;}
+
+.cell--source .ck.ck-button:not(.ck-source-editing-button) {
+	pointer-events: none;
+	background-color: var(--p-color-bg);
+	opacity: 0.4;
+}

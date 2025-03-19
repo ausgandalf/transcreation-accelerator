@@ -34,3 +34,28 @@
 .link--external .Polaris-Text--root + .Polaris-Icon {display: none;}
 .link--external:hover { text-decoration: underline; }
 .link--external:hover .Polaris-Text--root + .Polaris-Icon {display: block;}
+
+
+.table--translate .cell--target textarea {
+  border: solid 1px transparent;
+}
+.table--translate .cell--target textarea:focus,
+.table--translate .cell--target textarea:focus-visible {
+  outline: none;
+  border: solid 1px var(--p-color-border-emphasis);
+  color: var(--p-color-border-focus);
+}
+.table--translate .cell--target .Polaris-TextField__Backdrop {
+  background-color: transparent;
+  border: none;
+}
+
+.table--translate .cell--target .Polaris-TextField--focus > .Polaris-TextField__Input ~ .Polaris-TextField__Backdrop, .Polaris-TextField--focus > .Polaris-TextField__VerticalContent ~ .Polaris-TextField__Backdrop, .Polaris-TextField--focus > .Polaris-TextField__InputAndSuffixWrapper ~ .Polaris-TextField__Backdrop, .Polaris-TextField:focus-within > .Polaris-TextField__Input ~ .Polaris-TextField__Backdrop, .Polaris-TextField__Input:focus-visible ~ .Polaris-TextField__Backdrop,
+.table--translate .cell--target .Polaris-TextField:not(.Polaris-TextField--disabled):not(.Polaris-TextField--error):not(.Polaris-TextField--readOnly) > .Polaris-TextField__Input:hover:not(:focus-visible) ~ .Polaris-TextField__Backdrop {
+  background-color: transparent;
+  outline: none;
+}
+
+.table--translate .cell--target .Polaris-TextField--focus > .Polaris-TextField__Input {
+  color: var(--p-color-border-focus);
+}

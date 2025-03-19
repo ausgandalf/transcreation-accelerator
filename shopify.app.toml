@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a7e12a2610d20e6486de1aa5ea870187"
-application_url = "https://prague-horizontal-clients-lower.trycloudflare.com"
+application_url = "https://chile-patch-attraction-disappointed.trycloudflare.com"
 embedded = true
 name = "AI Transcreation"
 handle = "ai-transcreation"
@@ -20,9 +20,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://prague-horizontal-clients-lower.trycloudflare.com/auth/callback",
-  "https://prague-horizontal-clients-lower.trycloudflare.com/auth/shopify/callback",
-  "https://prague-horizontal-clients-lower.trycloudflare.com/api/auth/callback"
+  "https://chile-patch-attraction-disappointed.trycloudflare.com/auth/callback",
+  "https://chile-patch-attraction-disappointed.trycloudflare.com/auth/shopify/callback",
+  "https://chile-patch-attraction-disappointed.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

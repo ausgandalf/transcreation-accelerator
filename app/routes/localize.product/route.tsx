@@ -42,8 +42,11 @@ import { getRedirect, makeReadable, getFullscreen } from 'app/components/Functio
 import { getProducts, getProduct, getTranslationsByIds, setTranslations } from 'app/api/App';
 import { CheckListPop } from 'app/components/CheckListPop';
 
-import { thStyle, cellStyle, sourceCellStyle, Skeleton, SkeletonResources, SkeletonTranslation, SkeletonTranslationContent } from './skeleton';
+import { thStyle, cellStyle, sourceCellStyle, xtraCellStyle, targetCellStyle, textareaStyle } from "app/res/style";
+import { Skeleton, SkeletonResources, SkeletonTranslation, SkeletonTranslationContent } from './skeleton';
 import { transKeys } from 'app/api/data';
+import { Editor } from 'app/components/Editor';
+
 import { validateHeaderName } from 'http';
 
 
@@ -499,6 +502,33 @@ export default function App() {
       </a>
     )
   }
+
+  const renderTransSource = (type: string, value:string) => {
+    if (type == 'HTML') {
+      return (<Editor text={value} readOnly={true}/>)
+    } else {
+      return (
+        <Text as='p'>{value}</Text>
+      )
+    }
+  }
+
+  const renderTransEditor = (type: string, id:string, key:string) => {
+    if (type == 'HTML') {
+      return (<Editor text={getTranslatedValue(id, key)} onChange={(text:string) => updateTranslation(id, key, text)}/>)
+    } else {
+      return (
+        // Single line text
+        <textarea 
+          className='text--input'
+          value={getTranslatedValue(id, key)} 
+          onKeyDown={e => (e.key == "Enter") ? e.preventDefault() : ''}
+          onChange={e => updateTranslation(id, key, e.target.value)}
+          style={textareaStyle}
+        ></textarea>
+      )
+    }
+  }
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
 
@@ -672,7 +702,7 @@ export default function App() {
                           <BlockStack gap='400'>
                           
                             <Card padding='0'>
-                              <table width='100%' cellSpacing='0' cellPadding='0'>
+                              <table className='table table--translate' width='100%' cellSpacing='0' cellPadding='0'>
                                 <thead>
                                   <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}>
                                     <Text as="p" variant="headingMd" alignment="start">Product</Text>
@@ -692,27 +722,11 @@ export default function App() {
                                           <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(x.locale)}</Text>
                                         </BlockStack>
                                       </td>
-                                      <td width='40%' style={{...cellStyle, ...sourceCellStyle}}>
-                                        {(x.type == 'HTML') ? (
-                                          <div>{x.value}</div>
-                                        ) : (
-                                          <Text as='p'>{x.value}</Text>
-                                        )}
+                                      <td width='40%' className='cell cell--source' style={{...cellStyle, ...sourceCellStyle, ...xtraCellStyle(x.type)}}>
+                                        {renderTransSource(x.type, x.value)}
                                       </td>
-                                      <td width='40%' style={cellStyle}>
-                                        {(x.type == 'HTML') ? (
-                                          <div></div>
-                                        ) : (
-                                          <TextField
-                                            label={"Translation for " + getLanguageLabel(currentLocale.locale)}
-                                            labelHidden
-                                            value={getTranslatedValue(productInfoIds.id, x.key)} 
-                                            onChange={(value:string) => {
-                                              updateTranslation(productInfoIds.id, x.key, value);
-                                            }}
-                                            autoComplete="off"
-                                          />
-                                        )}
+                                      <td width='40%' className='cell cell--target' style={{...cellStyle, ...targetCellStyle}}>
+                                        {renderTransEditor(x.type, productInfoIds.id, x.key)}
                                       </td>
                                     </tr>
                                   ))}
@@ -721,7 +735,7 @@ export default function App() {
                             </Card>
 
                             <Card padding='0'>
-                              <table width='100%' cellSpacing='0' cellPadding='0'>
+                              <table className='table table--translate' width='100%' cellSpacing='0' cellPadding='0'>
                                 <thead>
                                   <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}>
                                     <Text as="p" variant="headingMd" alignment="start">Product options</Text>
@@ -734,36 +748,20 @@ export default function App() {
                                 </thead>
                                 
                                 {productInfoIds.options.map((x, i) => (
-                                  <tbody>
-                                    <tr key={'transopt-tr--' + i}>
+                                  <tbody key={'transopt-tbody--' + i}>
+                                    <tr>
                                       <td width='20%' style={cellStyle}>
                                         <BlockStack gap='100'>
                                           <Text as='p' variant='headingSm'>Option name</Text>
-                                          <Text as='p' tone='subdued' variant='bodySm'>{x.name}</Text>
-                                          {/* <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(transDataObject[x.id]['name'].locale)}</Text> */}
+                                          {/* <Text as='p' tone='subdued' variant='bodySm'>{x.name}</Text> */}
+                                          <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(transDataObject[x.id]['name'].locale)}</Text>
                                         </BlockStack>
                                       </td>
-                                      <td width='40%' style={{...cellStyle, ...sourceCellStyle}}>
-                                        {(x.type == 'HTML') ? (
-                                          <div>{transDataObject[x.id]['name'].value}</div>
-                                        ) : (
-                                          <Text as='p'>{transDataObject[x.id]['name'].value}</Text>
-                                        )}
+                                      <td width='40%' className='cell cell--source' style={{...cellStyle, ...sourceCellStyle, ...xtraCellStyle(x.type)}}>
+                                        {renderTransSource(x.type, transDataObject[x.id]['name'].value)}
                                       </td>
-                                      <td width='40%' style={cellStyle}>
-                                        {(x.type == 'HTML') ? (
-                                          <div></div>
-                                        ) : (
-                                          <TextField
-                                            label={"Translation for " + getLanguageLabel(currentLocale.locale)}
-                                            labelHidden
-                                            value={getTranslatedValue(x.id, 'name')} 
-                                            onChange={(value:string) => {
-                                              updateTranslation(x.id, 'name', value);
-                                            }}
-                                            autoComplete="off"
-                                          />
-                                        )}
+                                      <td width='40%' className='cell cell--target' style={{...cellStyle, ...targetCellStyle}}>
+                                        {renderTransEditor(x.type, x.id, 'name')}
                                       </td>
                                     </tr>
 
@@ -772,34 +770,18 @@ export default function App() {
                                         {(j==0) && (
                                           <td width='20%' style={cellStyle} rowSpan={x.optionValues.length}>
                                             <BlockStack gap='100'>
-                                              <Text as='p' variant='headingSm'>Option value(s)</Text>
-                                              <Text as='p' tone='subdued' variant='bodySm'>{x.name}</Text>
-                                              {/* <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(transDataObject[x.id]['name'].locale)}</Text> */}
+                                              <Text as='p' variant='headingSm'>{x.name}</Text>
+                                              <Text as='p' tone='subdued' variant='bodySm'>Option values</Text>
+                                              <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(transDataObject[ov.id]['name'].locale)}</Text>
                                             </BlockStack>
                                           </td>
                                         )}
 
-                                        <td width='40%' style={{...cellStyle, ...sourceCellStyle}}>
-                                          {(ov.type == 'HTML') ? (
-                                            <div>{transDataObject[ov.id]['name'].value}</div>
-                                          ) : (
-                                            <Text as='p'>{transDataObject[ov.id]['name'].value}</Text>
-                                          )}
+                                        <td width='40%' className='cell cell--source' style={{...cellStyle, ...sourceCellStyle, ...xtraCellStyle(x.type)}}>
+                                          {renderTransSource(ov.type, transDataObject[ov.id]['name'].value)}
                                         </td>
-                                        <td width='40%' style={cellStyle}>
-                                          {(ov.type == 'HTML') ? (
-                                            <div></div>
-                                          ) : (
-                                            <TextField
-                                              label={"Translation for " + getLanguageLabel(currentLocale.locale)}
-                                              labelHidden
-                                              value={getTranslatedValue(ov.id, 'name')} 
-                                              onChange={(value:string) => {
-                                                updateTranslation(ov.id, 'name', value);
-                                              }}
-                                              autoComplete="off"
-                                            />
-                                          )}
+                                        <td width='40%' className='cell cell--target' style={{...cellStyle, ...targetCellStyle}}>
+                                          {renderTransEditor(ov.type, ov.id, 'name')}
                                         </td>
                                       </tr>
                                     ))}

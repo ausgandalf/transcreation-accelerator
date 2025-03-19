@@ -1,9 +1,20 @@
 import {Spinner} from '@shopify/polaris';
 
-export const LoadingScreen = ({position}) => {
+interface LoadingScreenProps {
+  position?: string,
+}
+
+const defaultProps: LoadingScreenProps = {
+  position: 'fixed',
+}
+
+export const LoadingScreen = (props: LoadingScreenProps) => {
+  props = {...defaultProps, ...props}
+  const { position } = props;
+
   return(
     <div className='loadingScreen' style={{
-      position: position ? position : 'fixed',
+      position,
       left: '0',
       right: '0',
       top: '0',
