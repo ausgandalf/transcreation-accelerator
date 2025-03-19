@@ -82,6 +82,8 @@ export const TextEditor = (props: EditorProps) => {
         isReadOnly: {readOnly},
         toolbar: {
           items: [
+            'sourceEditing',
+            '|',
             'heading',
             '|',
             'bold',
@@ -97,7 +99,6 @@ export const TextEditor = (props: EditorProps) => {
             'bulletedList',
             'outdent',
             'indent',
-            'sourceEditing'
           ],
           shouldNotGroupWhenFull: false
         },

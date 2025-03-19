@@ -6,13 +6,6 @@
 	}
 }
 
-.editor-container {
-	width: 100%;
-}
-.editor-container .ck {
-	width: 100%;
-}
-
 .ck.ck-content.ck-editor__editable, 
 .ck-source-editing-area {
 	background-color: transparent;

@@ -130,8 +130,8 @@ export const Skeleton = () => {
       </Box>
 
       <div className='fullscreenLayout withTopBar'>
-        <Layout>
-          <Layout.Section variant='oneThird'>
+        <div className='layout layout--translate'>
+          <div>
             <div style={{background:'#fff',height:'100%',overflow:'auto',position:'relative'}}>
                 <Box padding='200'>
                   <InlineStack align='space-between' blockAlign='center'>
@@ -150,14 +150,14 @@ export const Skeleton = () => {
                 </div>
               
             </div>
-          </Layout.Section>
+          </div>
           
-          <Layout.Section>
+          <div>
             <Box padding='400'>
               <SkeletonTranslation />
             </Box>
-          </Layout.Section>  
-        </Layout>
+          </div>  
+        </div>
       </div>
 
     </Box>

@@ -7,19 +7,26 @@
   background-color: var(--p-color-bg-fill-hover);
 }
 
-.fullscreenLayout .Polaris-Layout {
+
+.layout--translate {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-width: 100%;
+}
+
+.fullscreenLayout .layout--translate {
   position: fixed;
   height: 100%;
   width: 100%;
   margin: 0;
 }
 
-.fullscreenLayout.withTopBar .Polaris-Layout {
+.fullscreenLayout.withTopBar .layout--translate {
   height: calc(100% - 57px);
   top: 57px;
 }
 
-.fullscreenLayout .Polaris-Layout .Polaris-Layout__Section {
+.fullscreenLayout .layout--translate > div {
   height: 100%;
   margin: 0;
   overflow: auto;
@@ -35,6 +42,22 @@
 .link--external:hover { text-decoration: underline; }
 .link--external:hover .Polaris-Text--root + .Polaris-Icon {display: block;}
 
+.table--translate {
+  display: grid;
+  grid-template-columns: 11.25rem 1fr 1fr;
+  min-width: 100%;
+}
+
+.table--translate thead, 
+.table--translate tbody, 
+.table--translate tr {
+  display: contents;
+}
+.table--translate th, 
+.table--translate td {
+  overflow: hidden;
+  width: 100%;
+}
 
 .table--translate .cell--target textarea {
   border: solid 1px transparent;

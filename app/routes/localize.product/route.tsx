@@ -579,8 +579,8 @@ export default function App() {
           </Box>
 
           <div className='fullscreenLayout withTopBar'>
-            <Layout>
-              <Layout.Section variant='oneThird'>
+            <div className='layout layout--translate'>
+              <div>
                 <div style={{background:'#fff',height:'100%',overflow:'auto',position:'relative'}}>
                     {isResourceLoading && (<LoadingScreen position='absolute' />)}
                     <Box padding='200'>
@@ -646,9 +646,9 @@ export default function App() {
                     )}
                   
                 </div>
-              </Layout.Section>
+              </div>
               
-              <Layout.Section>
+              <div>
                 <div style={{height:'100%',overflow:'auto',position:'relative'}}>
 
                   {isTranslationLoading && (<LoadingScreen position='absolute' />)}
@@ -704,7 +704,7 @@ export default function App() {
                             <Card padding='0'>
                               <table className='table table--translate' width='100%' cellSpacing='0' cellPadding='0'>
                                 <thead>
-                                  <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}>
+                                  <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)', gridColumn: '1 / -1',}}>
                                     <Text as="p" variant="headingMd" alignment="start">Product</Text>
                                   </th></tr>
                                   <tr>
@@ -737,7 +737,7 @@ export default function App() {
                             <Card padding='0'>
                               <table className='table table--translate' width='100%' cellSpacing='0' cellPadding='0'>
                                 <thead>
-                                  <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}>
+                                  <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)', gridColumn: '1 / -1',}}>
                                     <Text as="p" variant="headingMd" alignment="start">Product options</Text>
                                   </th></tr>
                                   <tr>
@@ -768,7 +768,7 @@ export default function App() {
                                     {x.optionValues.map((ov,j) => (
                                       <tr key={'transopt-tr-ov--' + i + '-' + j}>
                                         {(j==0) && (
-                                          <td width='20%' style={cellStyle} rowSpan={x.optionValues.length}>
+                                          <td width='20%' style={{...cellStyle, gridRow: 'span 2', }} rowSpan={x.optionValues.length}>
                                             <BlockStack gap='100'>
                                               <Text as='p' variant='headingSm'>{x.name}</Text>
                                               <Text as='p' tone='subdued' variant='bodySm'>Option values</Text>
@@ -802,8 +802,8 @@ export default function App() {
                     
                   </Box>
                 </div>
-              </Layout.Section>  
-            </Layout>
+              </div>  
+            </div>
           </div>
 
 
