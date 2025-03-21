@@ -39,7 +39,7 @@ import { authenticate, login } from "../../shopify.server";
 import { SelectPop } from 'app/components/SelectPop';
 import { MarketsPop } from 'app/components/MarkertsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { getRedirect, makeReadable, enterFullscreen, exitFullscreen } from 'app/components/Functions';
+import { isSaveBarOpen, getRedirect, makeReadable, enterFullscreen, exitFullscreen } from 'app/components/Functions';
 import { getProducts, getProduct, getTranslationsByIds, setTranslations } from 'app/api/App';
 import { CheckListPop } from 'app/components/CheckListPop';
 
@@ -115,16 +115,18 @@ export async function action({ request, params }) {
     
   } else if (data.action == 'submit') {
     // Load Translation data
+    let results = [];
     const translationsObj = JSON.parse(data.translations);
     for (let i=0; i<translationsObj.length; i++) {
       let endLoop = false;
       while (!endLoop) {
         try {
-          result = await setTranslations(admin.graphql, translationsObj[i].id, translationsObj[i].data);
+          results.push(await setTranslations(admin.graphql, translationsObj[i].id, translationsObj[i].data, data.market));
           endLoop = true;
         } catch (e) {}
       }
     }
+    result['results'] = results;
   }
 
   return Response.json({ ...result, input:data, action:data.action });
@@ -481,8 +483,17 @@ export default function App() {
         href="#" 
         onClick={(e) => {
           e.preventDefault();
-          // TODO - load translation
+
+          if (selectedResource.id == item.id) return; 
+
+          if (isSaveBarOpen()) {
+            shopify.toast.show("You have unsaved changes. ", {duration: 2000});
+            shopify.saveBar.leaveConfirmation('translation-save-bar');
+            return;
+          }
+          
           selectResource(item);
+
         }}>
         <InlineStack gap='100' wrap={false}>
           {item.image ? (
@@ -596,6 +607,7 @@ export default function App() {
                           checked={filters.length > 0 ? [filters[0].value] : []}
                           onChange={(selected: string) => {
                             // TODO
+                            document.body.classList.toggle('resource-panel--open', false);
                             setFilterStatus(selected[0]);
 
                             // Initialize

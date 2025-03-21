@@ -3,6 +3,7 @@ import { Form } from '@remix-run/react';
 
 // CK5 Rich-Text-Editor Types
 import type ChangeEvent from "@ckeditor/ckeditor5-utils/src/eventinfo";
+import {Box, SkeletonDisplayText} from '@shopify/polaris';
 
 interface EditorProps {
   text?: string,
@@ -24,9 +25,9 @@ export const Editor = (props: EditorProps) => {
   useEffect(() => {
     async function loadTextEditor() {
       try {
-        console.log('Attempting to load TextEditor');
+        // console.log('Attempting to load TextEditor');
         const { TextEditor } = await import('./Editor--CKEditor');
-        console.log('TextEditor loaded:', TextEditor);
+        // console.log('TextEditor loaded:', TextEditor);
         setTextEditorComponent(() => TextEditor);
       } catch (error) {
         console.error('Failed to load TextEditor:', error);
@@ -37,6 +38,11 @@ export const Editor = (props: EditorProps) => {
 
   return (
     <div style={{width:'100%'}}>
+      {!TextEditorComponent && (
+        <Box padding="400">
+          <SkeletonDisplayText size="extraLarge" />
+        </Box>
+      )}
       {TextEditorComponent && (
         <TextEditorComponent 
           text={text} 

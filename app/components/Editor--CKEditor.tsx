@@ -45,6 +45,8 @@ import {
 import 'ckeditor5/ckeditor5.css';
 import '../res/ckeditor.css'
 
+import { InsertShopifyImage } from './Editor--CKEditor--Plugins';
+
 /**
  * Create a free account with a trial: https://portal.ckeditor.com/checkout?plan=free
  */
@@ -94,6 +96,7 @@ export const TextEditor = (props: EditorProps) => {
             'alignment',
             '|',
             'link',
+            // 'insertShopifyImage', 'insertImageViaUrl',
             'insertImage',
             'mediaEmbed',
             '|',
@@ -238,6 +241,10 @@ export const TextEditor = (props: EditorProps) => {
             editor={ClassicEditor} 
             config={editorConfig} 
             onChange={onChange}
+            onReady={ editor => {
+              // console.log( 'Editor is ready to use!', editor );
+              // Custom command can be added up
+            }}
           />
         </Suspense>
       )}

@@ -231,10 +231,9 @@ export async function setTranslations (graphql, id:string, translations:[], mark
   
   if (market) {
     for (let i=0; i<translations.length; i++) {
-      translations[i]['market'] = market;
+      translations[i]['marketId'] = market;
     }
   }
-
   const response = await graphql(
     `#graphql
     mutation translationsRegister($resourceId: ID!, $translations: [TranslationInput!]!) {

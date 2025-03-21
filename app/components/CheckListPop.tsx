@@ -25,7 +25,10 @@ export const CheckListPop = ({label, options, checked, multiple, onChange, suffi
     const [popActive, setPopActive] = useState(false);
     const [selected, setSelected] = useState<string[]>(checked ? checked : []);
 
-    const togglePopActive = useCallback(() => setPopActive((active) => !active), []);
+    const togglePopActive = useCallback(() => {
+        setPopActive((active) => !active);
+        document.body.classList.toggle('resource-panel--open', !popActive);
+    }, [popActive]);
     const popActiveActivator = (
         <BlockStack gap="200">
             <a onClick={togglePopActive}>

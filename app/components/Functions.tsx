@@ -80,3 +80,7 @@ export const makeReadable = (text:string) => {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
+
+export const isSaveBarOpen = (id:string = 'translation-save-bar') => {
+  return document.getElementById(id)?.showing;
+}

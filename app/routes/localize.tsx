@@ -41,7 +41,7 @@ export const links = () => [
 import { SelectPop } from 'app/components/SelectPop';
 import { MarketsPop } from 'app/components/MarkertsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { getRedirect, getFullscreen, enterFullscreen, exitFullscreen } from 'app/components/Functions';
+import { isSaveBarOpen, getRedirect, getFullscreen, enterFullscreen, exitFullscreen } from 'app/components/Functions';
 import { getShopLocales, getShopMarkets } from 'app/api/App';
 
 import { sections } from 'app/api/data';
@@ -166,6 +166,14 @@ export default function App() {
   }, [nav.state, nav.formData])
 
   const onMarketUpdate = (market:string, locale: string) => {
+    
+    // Stop reloading content if there is unsaved content
+    if (isSaveBarOpen()) {
+      shopify.toast.show("You have unsaved changes. ", {duration: 2000});
+      shopify.saveBar.leaveConfirmation('translation-save-bar');
+      return;
+    }
+
     setIsLoading(true);
     let url = `${path}?shopLocale=${locale}`;
     if (market) url += `&market=${market}`;
@@ -200,6 +208,14 @@ export default function App() {
             content: y.content,
             active: y.content == pathLabel(),
             onAction: () => {
+              
+              // Stop reloading content if there is unsaved content
+              if (isSaveBarOpen()) {
+                shopify.toast.show("You have unsaved changes. ", {duration: 2000});
+                shopify.saveBar.leaveConfirmation('translation-save-bar');
+                return;
+              }
+
               // Redirect
               if (y.content != pathLabel()) {
                 setIsLoading(true);

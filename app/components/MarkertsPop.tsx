@@ -70,8 +70,8 @@ export const MarketsPop = (props : MarketsPopProps ) => {
                     content: x.name,
                     active: (currentMarket.handle == '') && (x.locale == currentLocale.locale),
                     onAction: () => {
-                        setSelectedLocale(x);
-                        setPopActive(false);
+                        // setSelectedLocale(x);
+                        // setPopActive(false);
                         update('', x.locale);
                     },
                 }))
@@ -135,8 +135,8 @@ export const MarketsPop = (props : MarketsPopProps ) => {
                                 content: getLocaleByKey(x.locale).name,
                                 active: (currentMarket.handle == selectedMarket.handle) && (x.locale == currentLocale.locale),
                                 onAction: () => {
-                                    setSelectedLocale(getLocaleByKey(x.locale));
-                                    setPopActive(false);
+                                    // setSelectedLocale(getLocaleByKey(x.locale));
+                                    // setPopActive(false);
                                     update(selectedMarket.handle, x.locale);
                                 }
                             }))}
