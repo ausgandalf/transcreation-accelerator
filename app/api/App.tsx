@@ -151,11 +151,17 @@ export async function getCollections(graphql, cursor?:string, limit:number = 12)
 
   const response = await graphql(`
   query getCollections {
+    collectionsCount {
+      count
+    }
     collections(first: ${limit} ${start}) {
       nodes {
         id
         handle
         title
+        image {
+          url
+        }
       }
       pageInfo {
         hasNextPage
@@ -166,10 +172,10 @@ export async function getCollections(graphql, cursor?:string, limit:number = 12)
   }`);
  
   const {
-    data: { collections },
+    data: { collections, collectionsCount },
   } = await response.json();
 
-  return collections;
+  return {collections, total: collectionsCount.count};
 }
 
 export async function getTranslations(graphql, id:string, locale:string) {

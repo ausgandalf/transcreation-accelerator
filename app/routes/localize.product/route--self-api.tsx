@@ -71,8 +71,87 @@ export async function action({ request, params }) {
     ...Object.fromEntries(await request.formData()),
     shop,
   };
-  
-  return Response.json({ input:data });
+
+  let result:any = {};
+  if (data.action == 'list') {
+    // Load Collection data
+    let endLoop = false;
+    while (!endLoop) {
+      try {
+        result = await getProducts(admin.graphql, data.cursor, data.status, data.perPage);
+        endLoop = true;
+      } catch (e) {}
+    }
+  } else if (data.action == 'read') {
+    // Load Product info
+    let product:any = false;
+    let endLoop = false;
+    while (!endLoop) {
+      try {
+        product = await getProduct(admin.graphql, data.id);
+        endLoop = true;
+      } catch (e) {}
+    }
+
+    if (product) {
+      let ids = [ product.id ];
+      product.options.map((x, i) => {
+        ids.push(x.id);
+        x.optionValues.map((y, j) => {
+          ids.push(y.id);
+        })
+      })
+    
+      // Load Translation data
+      endLoop = !product; // We fetch translation data only when product is found.
+      while (!endLoop) {
+        try {
+          result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
+          endLoop = true;
+        } catch (e) {}
+      }
+    }
+
+    result['product'] = product; // Put product info
+    
+  } else if (data.action == 'submit') {
+    // Load Translation data
+    const translationsObj = JSON.parse(data.translations);
+    let results = [...Array(translationsObj.length)];
+    for (let i=0; i<translationsObj.length; i++) {
+      results[i] = {}
+      let setData = [];
+      let deleteKeys = [];
+      // Prepare set and delete data
+      for (let j=0; j< translationsObj[i].data.length; j++) {
+        if (translationsObj[i].data[j].value == '') {
+          deleteKeys.push(translationsObj[i].data[j].key);
+        } else {
+          translationsObj[i].data[j].locale = data.locale;
+          setData.push(translationsObj[i].data[j]);
+        }
+      }
+
+      let endLoop = !(setData.length > 0); // If only we have setData, then try to set translations
+      while (!endLoop) {
+        try {
+          results[i]['set'] = await setTranslations(admin.graphql, translationsObj[i].id, setData, data.market);
+          endLoop = true;
+        } catch (e) {}
+      }
+
+      endLoop = !(deleteKeys.length > 0); // If only we have setData, then try to set translations
+      while (!endLoop) {
+        try {
+          results[i]['delete'] = await deleteTranslations(admin.graphql, translationsObj[i].id, deleteKeys, data.locale, data.market);
+          endLoop = true;
+        } catch (e) {}
+      }
+    }
+    result['results'] = results;
+  }
+
+  return Response.json({ ...result, input:data, action:data.action });
 }
 
 export default function App() {
@@ -250,17 +329,17 @@ export default function App() {
       id: selectedResource.id,
       market: currentMarket.id,
       locale: currentLocale.locale,
-      action: 'trans_submit',
+      action: 'submit',
     };
     // console.log('submitting translations ...', data);
-    fetcher.submit(data, { action:"/api", method: "post" });
+    fetcher.submit(data, { method: "post" });
   };
 
   useEffect(() => {
     // console.log(fetcher);
     if (!fetcher.data) {
     } else {
-      if (fetcher.data.action == 'product_list') {
+      if (fetcher.data.action == 'list') {
         
         setKnownTotalPage(fetcher.data.total);
         if (fetcher.data.products.pageInfo.hasNextPage) {
@@ -277,7 +356,7 @@ export default function App() {
         // Remove loading anim
         setIsResourceLoading(false);
 
-      } else if (fetcher.data.action == 'product_read') {
+      } else if (fetcher.data.action == 'read') {
         // TODO
         if (fetcher.data.transdata && (fetcher.data.product.id == selectedResource.id)) {
 
@@ -318,7 +397,7 @@ export default function App() {
           // Remove loading anim
           setIsTranslationLoading(false);
         }
-      } else if (fetcher.data.action == 'trans_submit') {
+      } else if (fetcher.data.action == 'submit') {
         // TODO
         setCleanFormState(structuredClone(formState));
         setIsLoading(false);
@@ -362,10 +441,10 @@ export default function App() {
       cursor: props.cursor,
       perPage: props.perPage,
       status: props.status,
-      action: 'product_list',
+      action: 'list',
     };
     // console.log('list products...');
-    fetcher.submit(data, { action: "/api", method: "post" });
+    fetcher.submit(data, { method: "post" });
     // submit(data, { method: "post" });
   };
 
@@ -385,10 +464,10 @@ export default function App() {
       id: item.id,
       locale: currentLocale.locale,
       market: currentMarket.id,
-      action: 'product_read',
+      action: 'read',
     };
     // console.log('Read translation data...');
-    fetcher.submit(data, { action:"/api", method: "post" });
+    fetcher.submit(data, { method: "post" });
   }
 
   function getLanguageLabel(locale:string) {
