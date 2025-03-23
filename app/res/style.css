@@ -154,3 +154,21 @@
 .table--translate .cell--target .Polaris-TextField--focus > .Polaris-TextField__Input {
   color: var(--p-color-border-focus);
 }
+
+@keyframes placeholder-shimmer {
+  0% { background-position:  100%; }
+100% { background-position: -100%; }
+}
+
+.loading--gray-gradient {
+  animation: 3s linear infinite placeholder-shimmer;
+  background-image: linear-gradient(to right, 
+    rgba(0,0,0,.00)   0%, 
+    rgba(0,0,0,.1)  25%, 
+    rgba(0,0,0,.00)  50%, 
+    rgba(0,0,0,.1)  75%, 
+    rgba(0,0,0,.00) 100%
+  );
+  background-size: 200%;
+  height: 100%; width: 100%;
+}

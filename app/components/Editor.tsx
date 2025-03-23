@@ -4,6 +4,7 @@ import { Form } from '@remix-run/react';
 // CK5 Rich-Text-Editor Types
 import type ChangeEvent from "@ckeditor/ckeditor5-utils/src/eventinfo";
 import {Box, SkeletonDisplayText} from '@shopify/polaris';
+import { LoadingGrayGradient } from './LoadingGrayGradient';
 
 interface EditorProps {
   text?: string,
@@ -38,9 +39,11 @@ export const Editor = (props: EditorProps) => {
 
   return (
     <div style={{width:'100%'}}>
+
       {!TextEditorComponent && (
-        <Box padding="400">
-          <SkeletonDisplayText size="extraLarge" />
+        <Box>
+          <LoadingGrayGradient height='39px' />
+          <Box minHeight='250px' />
         </Box>
       )}
       {TextEditorComponent && (
