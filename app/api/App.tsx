@@ -269,3 +269,42 @@ export async function setTranslations (graphql, id:string, translations:[], mark
 
   return {result: translationsRegister};
 }
+
+export async function deleteTranslations (graphql, id:string, keys:[string], locale:string, market:string =  '') {
+  
+  let variables = {
+    "resourceId": id,
+    "locales": [
+      locale
+    ],
+    "translationKeys": keys,
+    "marketIds": []
+  };
+  if (market) {
+    variables.marketIds.push(market);
+  }
+
+  const response = await graphql(
+    `mutation translationsRemove($resourceId: ID!, $translationKeys: [String!]!, $locales: [String!]!, $marketIds: [ID!]!) {
+      translationsRemove(resourceId: $resourceId, translationKeys: $translationKeys, locales: $locales, marketIds:$marketIds) {
+        userErrors {
+          message
+          field
+        }
+        translations {
+          key
+          value
+        }
+      }
+    }`,
+    {
+      variables
+    },
+  );
+
+  const {
+    data: { translationsRemove },
+  } = await response.json();
+
+  return {result: translationsRemove};
+}

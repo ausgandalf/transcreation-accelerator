@@ -40,7 +40,7 @@ import { SelectPop } from 'app/components/SelectPop';
 import { MarketsPop } from 'app/components/MarkertsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
 import { isSaveBarOpen, getRedirect, makeReadable, enterFullscreen, exitFullscreen } from 'app/components/Functions';
-import { getProducts, getProduct, getTranslationsByIds, setTranslations } from 'app/api/App';
+import { getProducts, getProduct, getTranslationsByIds, setTranslations, deleteTranslations } from 'app/api/App';
 import { CheckListPop } from 'app/components/CheckListPop';
 
 import { thStyle, cellStyle, sourceCellStyle, xtraCellStyle, targetCellStyle, textareaStyle } from "app/res/style";
@@ -49,6 +49,7 @@ import { transKeys } from 'app/api/data';
 import { Editor } from 'app/components/Editor';
 
 import { validateHeaderName } from 'http';
+import { json } from 'stream/consumers';
 
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -115,13 +116,34 @@ export async function action({ request, params }) {
     
   } else if (data.action == 'submit') {
     // Load Translation data
-    let results = [];
     const translationsObj = JSON.parse(data.translations);
+    let results = [...Array(translationsObj.length)];
     for (let i=0; i<translationsObj.length; i++) {
-      let endLoop = false;
+      results[i] = {}
+      let setData = [];
+      let deleteKeys = [];
+      // Prepare set and delete data
+      for (let j=0; j< translationsObj[i].data.length; j++) {
+        if (translationsObj[i].data[j].value == '') {
+          deleteKeys.push(translationsObj[i].data[j].key);
+        } else {
+          translationsObj[i].data[j].locale = data.locale;
+          setData.push(translationsObj[i].data[j]);
+        }
+      }
+
+      let endLoop = !(setData.length > 0); // If only we have setData, then try to set translations
       while (!endLoop) {
         try {
-          results.push(await setTranslations(admin.graphql, translationsObj[i].id, translationsObj[i].data, data.market));
+          results[i]['set'] = await setTranslations(admin.graphql, translationsObj[i].id, setData, data.market);
+          endLoop = true;
+        } catch (e) {}
+      }
+
+      endLoop = !(deleteKeys.length > 0); // If only we have setData, then try to set translations
+      while (!endLoop) {
+        try {
+          results[i]['delete'] = await deleteTranslations(admin.graphql, translationsObj[i].id, deleteKeys, data.locale, data.market);
           endLoop = true;
         } catch (e) {}
       }
@@ -194,7 +216,9 @@ export default function App() {
       const key = action.traslation.key;
       const v = action.traslation.value.trim();
       if (v == '') {
-        if (key in state[id]) delete state[id][key]; 
+        // if (key in state[id]) delete state[id][key];  // No, this will leave current translation as is.
+        action.traslation.value = v; // Let's apply trimmed value. Not sure if this is right deceision though...
+        state[id][key] = {...action.traslation}
       } else {
         state[id][key] = {...action.traslation}
       }
@@ -257,7 +281,7 @@ export default function App() {
     try {
       // let transObj = getTransSourceObj(transData[id], key);
       let transObj = {...transDataObject[id][key]};
-      transObj.locale = currentLocale.locale;
+      // transObj.locale = currentLocale.locale;
       transObj.value = translation;
       transObj.translatableContentDigest = transObj.digest;
       delete transObj.digest;
@@ -288,7 +312,10 @@ export default function App() {
     for (var id in formState) {
       let trans = [];
       for (var key in formState[id]) {
-        trans.push(formState[id][key]);
+        // let's only push if we have changes
+        if (JSON.stringify(formState[id][key]) != JSON.stringify(cleanFormState[id][key])) {
+          trans.push(formState[id][key]);
+        }
       }
       translations.push({
         id,
@@ -301,6 +328,7 @@ export default function App() {
       translations: JSON.stringify(translations),
       id: selectedResource.id,
       market: currentMarket.id,
+      locale: currentLocale.locale,
       action: 'submit',
     };
     // console.log('submitting translations ...', data);
@@ -351,7 +379,7 @@ export default function App() {
             x.translations.map((y, j) => {
               // let obj = getTransSourceObj(x.translatableContent, y.key);
               let obj = {...translatableDataObj[x.resourceId][y.key]};
-              obj.locale = currentLocale.locale;
+              // obj.locale = currentLocale.locale;
               obj.value = y.value;
               obj.translatableContentDigest = obj.digest;
               delete obj.digest;
@@ -783,7 +811,7 @@ export default function App() {
                                     {x.optionValues.map((ov,j) => (
                                       <tr key={'transopt-tr-ov--' + i + '-' + j}>
                                         {(j==0) && (
-                                          <td width='20%' style={{...cellStyle, gridRow: 'span 2', }} rowSpan={x.optionValues.length}>
+                                          <td width='20%' style={{...cellStyle, gridRow: 'span ' + x.optionValues.length, }} rowSpan={x.optionValues.length}>
                                             <BlockStack gap='100'>
                                               <Text as='p' variant='headingSm'>{x.name}</Text>
                                               <Text as='p' tone='subdued' variant='bodySm'>Option values</Text>

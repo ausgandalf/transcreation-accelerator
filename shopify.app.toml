@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a7e12a2610d20e6486de1aa5ea870187"
-application_url = "https://shirts-sponsored-outline-controversial.trycloudflare.com"
+application_url = "https://exotic-graduation-viewpicture-developments.trycloudflare.com"
 embedded = true
 name = "AI Transcreation"
 handle = "ai-transcreation"
@@ -20,9 +20,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://shirts-sponsored-outline-controversial.trycloudflare.com/auth/callback",
-  "https://shirts-sponsored-outline-controversial.trycloudflare.com/auth/shopify/callback",
-  "https://shirts-sponsored-outline-controversial.trycloudflare.com/api/auth/callback"
+  "https://exotic-graduation-viewpicture-developments.trycloudflare.com/auth/callback",
+  "https://exotic-graduation-viewpicture-developments.trycloudflare.com/auth/shopify/callback",
+  "https://exotic-graduation-viewpicture-developments.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
