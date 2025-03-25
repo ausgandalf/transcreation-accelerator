@@ -10,18 +10,26 @@ export class InsertShopifyImage extends Plugin {
           // The button will be an instance of ButtonView.
           const button = new ButtonView();
 
+          const buttonIcon = `<svg viewBox="0 0 20 20"><path d="M1.201 1C.538 1 0 1.47 0 2.1v14.363c0 .64.534 1.037 1.186 1.037h9.494a2.97 2.97 0 0 1-.414-.287 2.998 2.998 0 0 1-1.055-2.03 3.003 3.003 0 0 1 .693-2.185l.383-.455-.02.018-3.65-3.41a.695.695 0 0 0-.957-.034L1.5 13.6V2.5h15v5.535a2.97 2.97 0 0 1 1.412.932l.088.105V2.1c0-.63-.547-1.1-1.2-1.1H1.202Zm11.713 2.803a2.146 2.146 0 0 0-2.049 1.992 2.14 2.14 0 0 0 1.28 2.096 2.13 2.13 0 0 0 2.644-3.11 2.134 2.134 0 0 0-1.875-.978Z"></path><path d="M15.522 19.1a.79.79 0 0 0 .79-.79v-5.373l2.059 2.455a.79.79 0 1 0 1.211-1.015l-3.352-3.995a.79.79 0 0 0-.995-.179.784.784 0 0 0-.299.221l-3.35 3.99a.79.79 0 1 0 1.21 1.017l1.936-2.306v5.185c0 .436.353.79.79.79Z"></path><path d="M15.522 19.1a.79.79 0 0 0 .79-.79v-5.373l2.059 2.455a.79.79 0 1 0 1.211-1.015l-3.352-3.995a.79.79 0 0 0-.995-.179.784.784 0 0 0-.299.221l-3.35 3.99a.79.79 0 1 0 1.21 1.017l1.936-2.306v5.185c0 .436.353.79.79.79Z"></path></svg>`;
           button.set({
-              label: 'Insert Store Image ',
+              label: 'Insert Image from Store',
               withText: false,
-              icon: ' <svg viewBox="0 0 20 20"><path d="M1.201 1c-.662 0-1.2.47-1.2 1.1v14.248c0 .64.533 1.152 1.185 1.152h6.623v-7.236L6.617 9.15a.694.694 0 0 0-.957-.033L1.602 13.55V2.553l14.798.003V9.7H18V2.1c0-.63-.547-1.1-1.2-1.1H1.202Zm11.723 2.805a2.094 2.094 0 0 0-1.621.832 2.127 2.127 0 0 0 1.136 3.357 2.13 2.13 0 0 0 2.611-1.506 2.133 2.133 0 0 0-.76-2.244 2.13 2.13 0 0 0-1.366-.44Z"></path><path clip-rule="evenodd" d="M19.898 12.369v6.187a.844.844 0 0 1-.844.844h-8.719a.844.844 0 0 1-.843-.844v-7.312a.844.844 0 0 1 .843-.844h2.531a.843.843 0 0 1 .597.248l.838.852h4.75c.223 0 .441.114.6.272a.844.844 0 0 1 .247.597Zm-1.52.654-4.377.02-1.1-1.143H11v6h7.4l-.023-4.877Z"></path></svg> ',
+              icon: buttonIcon,
+              class: 'insertImageFromStoreButton',
               tooltip: true,
+
           });
 
           // Execute a callback function when the button is clicked.
           button.on( 'execute', () => {
-            const imageUrl = prompt("Enter image URL:", "https://via.placeholder.com/150"); // Get URL
+
+            document.currentEditor = editor;
+            document.getElementById('insert-image-modal').show();
+
+            // const imageUrl = prompt("Enter image URL:", "https://via.placeholder.com/150"); // Get URL
             
             // Change the model using the model writer.
+            /*
             editor.model.change( writer => {
                 // Insert the text at the user's current position.
                 if (imageUrl) {
@@ -31,6 +39,7 @@ export class InsertShopifyImage extends Plugin {
                   editor.model.insertContent(imageElement, editor.model.document.selection);
                 }
             });
+            */
           });
 
           return button;

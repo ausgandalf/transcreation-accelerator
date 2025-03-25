@@ -84,3 +84,53 @@ export const makeReadable = (text:string) => {
 export const isSaveBarOpen = (id:string = 'translation-save-bar') => {
   return document.getElementById(id)?.showing;
 }
+
+
+export function addSuffixToFilename(url:string, suffix:string) {
+  const parts = url.split('/');
+  const filename = parts.pop();
+  const filenameParts = filename.split('.');
+  const extension = filenameParts.pop();
+  const newFilename = filenameParts.join('.') + suffix + '.' + extension;
+  parts.push(newFilename);
+  return parts.join('/');
+}
+
+export const fileToBase64 = (file):string => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
+export function getReadableDate(date) {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const seconds = Math.round(diff / 1000);
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.round(minutes / 60);
+  const days = Math.round(hours / 24);
+
+  if (seconds < 60) {
+    return "just now";
+  } else if (minutes < 60) {
+    return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  } else if (hours < 24) {
+    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  } else if (days === 1) {
+    return "yesterday";
+  } else if (days < 7) {
+    return `${days} day${days > 1 ? 's' : ''} ago`;
+  } else if (days < 30) {
+      const weeks = Math.floor(days / 7);
+      return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+  } else if (days < 365) {
+      const months = Math.floor(days / 30);
+      return `${months} month${months > 1 ? 's' : ''} ago`;
+  } else {
+    const years = Math.floor(days / 365);
+    return `${years} year${years > 1 ? 's' : ''} ago`;
+  }
+}

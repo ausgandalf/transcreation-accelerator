@@ -39,7 +39,7 @@ import { authenticate, login } from "../../shopify.server";
 import { SelectPop } from 'app/components/SelectPop';
 import { MarketsPop } from 'app/components/MarkertsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { isSaveBarOpen, getRedirect, makeReadable, getReadableDate, enterFullscreen, exitFullscreen } from 'app/components/Functions';
+import { isSaveBarOpen, getRedirect, makeReadable, enterFullscreen, exitFullscreen } from 'app/components/Functions';
 import { getProducts, getProduct, getTranslationsByIds, setTranslations, deleteTranslations } from 'app/api/App';
 import { CheckListPop } from 'app/components/CheckListPop';
 
@@ -47,7 +47,6 @@ import { thStyle, cellStyle, sourceCellStyle, xtraCellStyle, targetCellStyle, te
 import { Skeleton, SkeletonResources, SkeletonTranslation, SkeletonTranslationContent } from './skeleton';
 import { transKeys } from 'app/api/data';
 import { Editor } from 'app/components/Editor';
-import { InsertImageModal } from 'app/components/Editor--CKEditor--InsertImageModal';
 
 import { validateHeaderName } from 'http';
 import { json } from 'stream/consumers';
@@ -72,8 +71,87 @@ export async function action({ request, params }) {
     ...Object.fromEntries(await request.formData()),
     shop,
   };
-  
-  return Response.json({ input:data });
+
+  let result:any = {};
+  if (data.action == 'list') {
+    // Load Collection data
+    let endLoop = false;
+    while (!endLoop) {
+      try {
+        result = await getProducts(admin.graphql, data.cursor, data.status, data.perPage);
+        endLoop = true;
+      } catch (e) {}
+    }
+  } else if (data.action == 'read') {
+    // Load Product info
+    let product:any = false;
+    let endLoop = false;
+    while (!endLoop) {
+      try {
+        product = await getProduct(admin.graphql, data.id);
+        endLoop = true;
+      } catch (e) {}
+    }
+
+    if (product) {
+      let ids = [ product.id ];
+      product.options.map((x, i) => {
+        ids.push(x.id);
+        x.optionValues.map((y, j) => {
+          ids.push(y.id);
+        })
+      })
+    
+      // Load Translation data
+      endLoop = !product; // We fetch translation data only when product is found.
+      while (!endLoop) {
+        try {
+          result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
+          endLoop = true;
+        } catch (e) {}
+      }
+    }
+
+    result['product'] = product; // Put product info
+    
+  } else if (data.action == 'submit') {
+    // Load Translation data
+    const translationsObj = JSON.parse(data.translations);
+    let results = [...Array(translationsObj.length)];
+    for (let i=0; i<translationsObj.length; i++) {
+      results[i] = {}
+      let setData = [];
+      let deleteKeys = [];
+      // Prepare set and delete data
+      for (let j=0; j< translationsObj[i].data.length; j++) {
+        if (translationsObj[i].data[j].value == '') {
+          deleteKeys.push(translationsObj[i].data[j].key);
+        } else {
+          translationsObj[i].data[j].locale = data.locale;
+          setData.push(translationsObj[i].data[j]);
+        }
+      }
+
+      let endLoop = !(setData.length > 0); // If only we have setData, then try to set translations
+      while (!endLoop) {
+        try {
+          results[i]['set'] = await setTranslations(admin.graphql, translationsObj[i].id, setData, data.market);
+          endLoop = true;
+        } catch (e) {}
+      }
+
+      endLoop = !(deleteKeys.length > 0); // If only we have setData, then try to set translations
+      while (!endLoop) {
+        try {
+          results[i]['delete'] = await deleteTranslations(admin.graphql, translationsObj[i].id, deleteKeys, data.locale, data.market);
+          endLoop = true;
+        } catch (e) {}
+      }
+    }
+    result['results'] = results;
+  }
+
+  return Response.json({ ...result, input:data, action:data.action });
 }
 
 export default function App() {
@@ -173,8 +251,6 @@ export default function App() {
   const [productInfoIds, setProductInfoIds] = useState({});
   const [currentTranslateMarketLocale, setCurrentTranslateMarketLocale] = useState('');
 
-  const [editors, setEditors] = useState({});
-
   const [formState, formStateDispatch] = useReducer(formStateReducer, {});
   const [cleanFormState, setCleanFormState] = useState({});
   const isDirty = JSON.stringify(formState) !== JSON.stringify(cleanFormState);
@@ -253,17 +329,17 @@ export default function App() {
       id: selectedResource.id,
       market: currentMarket.id,
       locale: currentLocale.locale,
-      action: 'trans_submit',
+      action: 'submit',
     };
     // console.log('submitting translations ...', data);
-    fetcher.submit(data, { action:"/api", method: "post" });
+    fetcher.submit(data, { method: "post" });
   };
 
   useEffect(() => {
     // console.log(fetcher);
     if (!fetcher.data) {
     } else {
-      if (fetcher.data.action == 'product_list') {
+      if (fetcher.data.action == 'list') {
         
         setKnownTotalPage(fetcher.data.total);
         if (fetcher.data.products.pageInfo.hasNextPage) {
@@ -280,7 +356,7 @@ export default function App() {
         // Remove loading anim
         setIsResourceLoading(false);
 
-      } else if (fetcher.data.action == 'product_read') {
+      } else if (fetcher.data.action == 'read') {
         // TODO
         if (fetcher.data.transdata && (fetcher.data.product.id == selectedResource.id)) {
 
@@ -309,9 +385,6 @@ export default function App() {
               delete obj.digest;
               delete obj.type;
               transData[x.resourceId][y.key] = {...obj};
-
-              translatableDataObj[x.resourceId][y.key]['updated'] = y.updatedAt;
-
             });
           });
 
@@ -320,11 +393,11 @@ export default function App() {
 
           formStateDispatch({type: 'init', translations: transData});
           setCleanFormState(transData);
-          setEditors({});
+          
           // Remove loading anim
           setIsTranslationLoading(false);
         }
-      } else if (fetcher.data.action == 'trans_submit') {
+      } else if (fetcher.data.action == 'submit') {
         // TODO
         setCleanFormState(structuredClone(formState));
         setIsLoading(false);
@@ -368,10 +441,10 @@ export default function App() {
       cursor: props.cursor,
       perPage: props.perPage,
       status: props.status,
-      action: 'product_list',
+      action: 'list',
     };
     // console.log('list products...');
-    fetcher.submit(data, { action: "/api", method: "post" });
+    fetcher.submit(data, { method: "post" });
     // submit(data, { method: "post" });
   };
 
@@ -391,10 +464,10 @@ export default function App() {
       id: item.id,
       locale: currentLocale.locale,
       market: currentMarket.id,
-      action: 'product_read',
+      action: 'read',
     };
     // console.log('Read translation data...');
-    fetcher.submit(data, { action:"/api", method: "post" });
+    fetcher.submit(data, { method: "post" });
   }
 
   function getLanguageLabel(locale:string) {
@@ -482,42 +555,21 @@ export default function App() {
   }
 
   const renderTransEditor = (type: string, id:string, key:string) => {
-    let editorObj;
     if (type == 'HTML') {
-      editorObj = <Editor 
-        text={getTranslatedValue(id, key)} 
-        onChange={(text:string) => updateTranslation(id, key, text)}
-        onReady={(editor:any) => {
-          let newEditors = {...editors};
-          newEditors[`${id}-${key}`] = editor;
-          console.log(newEditors);
-          setEditors(newEditors);
-        }}
-      />
+      return (<Editor text={getTranslatedValue(id, key)} onChange={(text:string) => updateTranslation(id, key, text)}/>)
+      return;
     } else {
-      editorObj = <textarea 
+      return (
+        // Single line text
+        <textarea 
           className='text--input'
           value={getTranslatedValue(id, key)} 
           onKeyDown={e => (e.key == "Enter") ? e.preventDefault() : ''}
           onChange={e => updateTranslation(id, key, e.target.value)}
           style={textareaStyle}
         ></textarea>
+      )
     }
-
-    return (<div>
-      {editorObj}
-      { transDataObject[id][key]['updated'] && (
-        <div className='label--updatedAt'>
-          <Text as='span' variant='bodyXs'>{ 'Updated at ' + getReadableDate(new Date(transDataObject[id][key]['updated'])) }</Text>
-        </div>
-      )}
-
-      { !transDataObject[id][key]['updated'] && (
-        <div className='label--updatedAt'>
-          <Text as='span' variant='bodyXs'>No translation set</Text>
-        </div>
-      )}
-    </div>)
   }
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
@@ -642,160 +694,156 @@ export default function App() {
               <div className='layout__section layout__section--translate'>
                 <div style={{height:'100%',overflow:'auto',position:'relative'}}>
 
-                  <div style={{position:'relative'}}>
-                    {isTranslationLoading && (<LoadingScreen position='absolute' />)}
+                  {isTranslationLoading && (<LoadingScreen position='absolute' />)}
 
-                    <Box padding='400'>
-                      {(selectedResource) ? (
-                        <BlockStack gap='400'>
-                          <InlineStack align='space-between' blockAlign='center'>
-                            <InlineStack gap='100'>
-                              {selectedResource.image ? (
-                                <Thumbnail
-                                  source={selectedResource.image.preview.image.url + '&width=24'}
-                                  size="small"
-                                  alt={selectedResource.title}
-                                />
-                              ) : (
-                                <Thumbnail
-                                  source={ImageIcon}
-                                  size="small"
-                                  alt={selectedResource.title}
-                                />
-                              )}
+                  <Box padding='400'>
+                    {(selectedResource) ? (
+                      <BlockStack gap='400'>
+                        <InlineStack align='space-between' blockAlign='center'>
+                          <InlineStack gap='100'>
+                            {selectedResource.image ? (
+                              <Thumbnail
+                                source={selectedResource.image.preview.image.url + '&width=24'}
+                                size="small"
+                                alt={selectedResource.title}
+                              />
+                            ) : (
+                              <Thumbnail
+                                source={ImageIcon}
+                                size="small"
+                                alt={selectedResource.title}
+                              />
+                            )}
 
-                              <a className='link--external' href="#" onClick={(e) => {
-                                e.preventDefault();
-                                getRedirect(shopify).dispatch(
-                                  Redirect.Action.ADMIN_SECTION, {
-                                    section: {
-                                      name: Redirect.ResourceType.Product,
-                                      resource: {
-                                        id: selectedResource.id.split('/').pop(),
-                                      },
+                            <a className='link--external' href="#" onClick={(e) => {
+                              e.preventDefault();
+                              getRedirect(shopify).dispatch(
+                                Redirect.Action.ADMIN_SECTION, {
+                                  section: {
+                                    name: Redirect.ResourceType.Product,
+                                    resource: {
+                                      id: selectedResource.id.split('/').pop(),
                                     },
-                                    newContext: true,
-                                  }
-                                )
-                              }}>
-                                <InlineStack wrap={false} gap='200'>
-                                  <Text as='h2' variant='headingLg'>{selectedResource.title}</Text>
-                                  <Icon source={ExternalIcon} />
-                                </InlineStack>
-                              </a>
-                            </InlineStack>
-                            <Box>
-                              <Button variant='secondary'>Auto-translate</Button>
-                            </Box>
-
+                                  },
+                                  newContext: true,
+                                }
+                              )
+                            }}>
+                              <InlineStack wrap={false} gap='200'>
+                                <Text as='h2' variant='headingLg'>{selectedResource.title}</Text>
+                                <Icon source={ExternalIcon} />
+                              </InlineStack>
+                            </a>
                           </InlineStack>
+                          <Box>
+                            <Button variant='secondary'>Auto-translate</Button>
+                          </Box>
 
-                          {isTranslationLoading ? (<SkeletonTranslationContent />) : (
-                            <BlockStack gap='400'>
-                            
-                              <Card padding='0'>
-                                <table className='table table--translate' width='100%' cellSpacing='0' cellPadding='0'>
-                                  <thead>
-                                    <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)', gridColumn: '1 / -1',}}>
-                                      <Text as="p" variant="headingMd" alignment="start">Product</Text>
-                                    </th></tr>
-                                    <tr>
-                                      <th style={thStyle}></th>
-                                      <th style={thStyle}><Text as='p' tone='subdued' alignment='start'>Reference</Text></th>
-                                      <th style={thStyle}><Text as='p' tone='subdued' alignment='start'>{currentLocale.name}</Text></th>
+                        </InlineStack>
+
+                        {isTranslationLoading ? (<SkeletonTranslationContent />) : (
+                          <BlockStack gap='400'>
+                          
+                            <Card padding='0'>
+                              <table className='table table--translate' width='100%' cellSpacing='0' cellPadding='0'>
+                                <thead>
+                                  <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)', gridColumn: '1 / -1',}}>
+                                    <Text as="p" variant="headingMd" alignment="start">Product</Text>
+                                  </th></tr>
+                                  <tr>
+                                    <th style={thStyle}></th>
+                                    <th style={thStyle}><Text as='p' tone='subdued' alignment='start'>Reference</Text></th>
+                                    <th style={thStyle}><Text as='p' tone='subdued' alignment='start'>{currentLocale.name}</Text></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {transData[productInfoIds.id].map((x, i) => (
+                                    <tr key={'transmain-tr--' + i}>
+                                      <td width='20%' style={cellStyle}>
+                                        <BlockStack gap='100'>
+                                          <Text as='p' variant='headingSm'>{getKeyLabel(x.key)}</Text>
+                                          <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(x.locale)}</Text>
+                                        </BlockStack>
+                                      </td>
+                                      <td width='40%' className='cell cell--source' style={{...cellStyle, ...sourceCellStyle, ...xtraCellStyle(x.type)}}>
+                                        {renderTransSource(x.type, x.value)}
+                                      </td>
+                                      <td width='40%' className='cell cell--target' style={{...cellStyle, ...targetCellStyle}}>
+                                        {renderTransEditor(x.type, productInfoIds.id, x.key)}
+                                      </td>
                                     </tr>
-                                  </thead>
-                                  <tbody>
-                                    {transData[productInfoIds.id].map((x, i) => (
-                                      <tr key={'transmain-tr--' + i}>
-                                        <td width='20%' style={cellStyle}>
-                                          <BlockStack gap='100'>
-                                            <Text as='p' variant='headingSm'>{getKeyLabel(x.key)}</Text>
-                                            <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(x.locale)}</Text>
-                                          </BlockStack>
-                                        </td>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </Card>
+
+                            <Card padding='0'>
+                              <table className='table table--translate' width='100%' cellSpacing='0' cellPadding='0'>
+                                <thead>
+                                  <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)', gridColumn: '1 / -1',}}>
+                                    <Text as="p" variant="headingMd" alignment="start">Product options</Text>
+                                  </th></tr>
+                                  <tr>
+                                    <th style={thStyle}></th>
+                                    <th style={thStyle}><Text as='p' tone='subdued'>Reference</Text></th>
+                                    <th style={thStyle}><Text as='p' tone='subdued'>{currentLocale.name}</Text></th>
+                                  </tr>
+                                </thead>
+                                
+                                {productInfoIds.options.map((x, i) => (
+                                  <tbody key={'transopt-tbody--' + i}>
+                                    <tr>
+                                      <td width='20%' style={cellStyle}>
+                                        <BlockStack gap='100'>
+                                          <Text as='p' variant='headingSm'>Option name</Text>
+                                          {/* <Text as='p' tone='subdued' variant='bodySm'>{x.name}</Text> */}
+                                          <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(transDataObject[x.id]['name'].locale)}</Text>
+                                        </BlockStack>
+                                      </td>
+                                      <td width='40%' className='cell cell--source' style={{...cellStyle, ...sourceCellStyle, ...xtraCellStyle(x.type)}}>
+                                        {renderTransSource(x.type, transDataObject[x.id]['name'].value)}
+                                      </td>
+                                      <td width='40%' className='cell cell--target' style={{...cellStyle, ...targetCellStyle}}>
+                                        {renderTransEditor(x.type, x.id, 'name')}
+                                      </td>
+                                    </tr>
+
+                                    {x.optionValues.map((ov,j) => (
+                                      <tr key={'transopt-tr-ov--' + i + '-' + j}>
+                                        {(j==0) && (
+                                          <td width='20%' style={{...cellStyle, gridRow: 'span ' + x.optionValues.length, }} rowSpan={x.optionValues.length}>
+                                            <BlockStack gap='100'>
+                                              <Text as='p' variant='headingSm'>{x.name}</Text>
+                                              <Text as='p' tone='subdued' variant='bodySm'>Option values</Text>
+                                              <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(transDataObject[ov.id]['name'].locale)}</Text>
+                                            </BlockStack>
+                                          </td>
+                                        )}
+
                                         <td width='40%' className='cell cell--source' style={{...cellStyle, ...sourceCellStyle, ...xtraCellStyle(x.type)}}>
-                                          {renderTransSource(x.type, x.value)}
+                                          {renderTransSource(ov.type, transDataObject[ov.id]['name'].value)}
                                         </td>
                                         <td width='40%' className='cell cell--target' style={{...cellStyle, ...targetCellStyle}}>
-                                          {renderTransEditor(x.type, productInfoIds.id, x.key)}
+                                          {renderTransEditor(ov.type, ov.id, 'name')}
                                         </td>
                                       </tr>
                                     ))}
                                   </tbody>
-                                </table>
-                              </Card>
-
-                              <Card padding='0'>
-                                <table className='table table--translate' width='100%' cellSpacing='0' cellPadding='0'>
-                                  <thead>
-                                    <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)', gridColumn: '1 / -1',}}>
-                                      <Text as="p" variant="headingMd" alignment="start">Product options</Text>
-                                    </th></tr>
-                                    <tr>
-                                      <th style={thStyle}></th>
-                                      <th style={thStyle}><Text as='p' tone='subdued'>Reference</Text></th>
-                                      <th style={thStyle}><Text as='p' tone='subdued'>{currentLocale.name}</Text></th>
-                                    </tr>
-                                  </thead>
-                                  
-                                  {productInfoIds.options.map((x, i) => (
-                                    <tbody key={'transopt-tbody--' + i}>
-                                      <tr>
-                                        <td width='20%' style={cellStyle}>
-                                          <BlockStack gap='100'>
-                                            <Text as='p' variant='headingSm'>Option name</Text>
-                                            {/* <Text as='p' tone='subdued' variant='bodySm'>{x.name}</Text> */}
-                                            <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(transDataObject[x.id]['name'].locale)}</Text>
-                                          </BlockStack>
-                                        </td>
-                                        <td width='40%' className='cell cell--source' style={{...cellStyle, ...sourceCellStyle, ...xtraCellStyle(x.type)}}>
-                                          {renderTransSource(x.type, transDataObject[x.id]['name'].value)}
-                                        </td>
-                                        <td width='40%' className='cell cell--target' style={{...cellStyle, ...targetCellStyle}}>
-                                          {renderTransEditor(x.type, x.id, 'name')}
-                                        </td>
-                                      </tr>
-
-                                      {x.optionValues.map((ov,j) => (
-                                        <tr key={'transopt-tr-ov--' + i + '-' + j}>
-                                          {(j==0) && (
-                                            <td width='20%' style={{...cellStyle, gridRow: 'span ' + x.optionValues.length, }} rowSpan={x.optionValues.length}>
-                                              <BlockStack gap='100'>
-                                                <Text as='p' variant='headingSm'>{x.name}</Text>
-                                                <Text as='p' tone='subdued' variant='bodySm'>Option values</Text>
-                                                <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(transDataObject[ov.id]['name'].locale)}</Text>
-                                              </BlockStack>
-                                            </td>
-                                          )}
-
-                                          <td width='40%' className='cell cell--source' style={{...cellStyle, ...sourceCellStyle, ...xtraCellStyle(x.type)}}>
-                                            {renderTransSource(ov.type, transDataObject[ov.id]['name'].value)}
-                                          </td>
-                                          <td width='40%' className='cell cell--target' style={{...cellStyle, ...targetCellStyle}}>
-                                            {renderTransEditor(ov.type, ov.id, 'name')}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  ))}
-                                </table>
-                              </Card>
-                              
-                        
-                            </BlockStack>
-                          )}
-
-
-                        </BlockStack>
-                      ) : (
-                        <SkeletonTranslation />
-                      )}
+                                ))}
+                              </table>
+                            </Card>
+                            
                       
-                    </Box>
+                          </BlockStack>
+                        )}
 
-                  </div>
 
+                      </BlockStack>
+                    ) : (
+                      <SkeletonTranslation />
+                    )}
+                    
+                  </Box>
                 </div>
               </div>  
             </div>
@@ -811,22 +859,10 @@ export default function App() {
           shopify.saveBar.hide('translation-save-bar');
         }}></button>
         <button id="discard-button" onClick={() => {
-          // console.log(cleanFormState, editors);
-          for (let key in editors) {
-            const [transiId, transKey] = key.split('-');
-            // Set flag to prevent onUpdate triggered
-            if (!editors[key].xtraData) editors[key].xtraData = {};
-            editors[key].xtraData.isForcedRollback = true;
-            let text = '';
-            if (cleanFormState[transiId] && cleanFormState[transiId][transKey] && cleanFormState[transiId][transKey]['value']) text = cleanFormState[transiId][transKey]['value'];
-            editors[key].setData(text);
-          }
           formStateDispatch({type: 'init', translations: cleanFormState});
           shopify.saveBar.hide('translation-save-bar');
         }}></button>
       </SaveBar>
-
-      <InsertImageModal editor={{}} />
 
     </Box>
   );

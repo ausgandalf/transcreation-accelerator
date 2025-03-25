@@ -55,17 +55,19 @@ const LICENSE_KEY = 'eyJhbGciOiJFUzI1NiJ9.eyJleHAiOjE3NDM1NTE5OTksImp0aSI6IjBlZm
 interface EditorProps {
   text?: string,
   onChange?: Function,
+  onReady?: Function,
   readOnly?: boolean,
 }
 const defaultProps : EditorProps = {
   text: '',
   readOnly: false,
   onChange: (data:any) => {},
+  onReady: (editor:any) => {},
 }
 
 export const TextEditor = (props: EditorProps) => {
   props = {...defaultProps, ...props};
-  const { text, onChange, readOnly } = props;
+  const { text, onReady, onChange, readOnly } = props;
 
   const [isLayoutReady, setIsLayoutReady] = useState(false);
 
@@ -96,8 +98,8 @@ export const TextEditor = (props: EditorProps) => {
             'alignment',
             '|',
             'link',
-            // 'insertShopifyImage', 'insertImageViaUrl',
-            'insertImage',
+            'insertShopifyImage', 'insertImageViaUrl',
+            // 'insertImage',
             'mediaEmbed',
             '|',
             'bulletedList',
@@ -107,6 +109,7 @@ export const TextEditor = (props: EditorProps) => {
           shouldNotGroupWhenFull: false
         },
         plugins: [
+          InsertShopifyImage,
           SourceEditing, 
           AutoImage,
           Autosave,
@@ -244,6 +247,7 @@ export const TextEditor = (props: EditorProps) => {
             onReady={ editor => {
               // console.log( 'Editor is ready to use!', editor );
               // Custom command can be added up
+              onReady(editor);
             }}
           />
         </Suspense>

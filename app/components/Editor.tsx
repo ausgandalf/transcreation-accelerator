@@ -10,18 +10,21 @@ interface EditorProps {
   text?: string,
   onChange?: Function,
   readOnly?: boolean,
+  onReady?: Function,
 }
 const defaultProps : EditorProps = {
   text: '',
   readOnly: false,
   onChange: (data:string) => {},
+  onReady: (ckeditor:any) => {},
 }
 
 
 export const Editor = (props: EditorProps) => {
   props = {...defaultProps, ...props};
-  const { text, onChange, readOnly } = props;
+  const { text, onChange, readOnly, onReady } = props;
   const [TextEditorComponent, setTextEditorComponent] = useState<React.ElementType | null>(null);
+  const [editor, setEditor] = useState(null);
 
   useEffect(() => {
     async function loadTextEditor() {
@@ -43,32 +46,40 @@ export const Editor = (props: EditorProps) => {
       {!TextEditorComponent && (
         <Box>
           <LoadingGrayGradient height='39px' />
-          <Box minHeight='250px' />
+          <LoadingGrayGradient height='250px' />
         </Box>
       )}
-      {TextEditorComponent && (
-        <TextEditorComponent 
-          text={text} 
-          readOnly={readOnly} 
-          onChange={(event: ChangeEvent, editor: any) => {
-            const data:string = editor.getData();
-            // console.log({ event, editor, data });
-            onChange(data);
 
-            if (readOnly) {
-              // console.log(editor.xtraDatatext);
-              if (editor.xtraData && editor.xtraData.isForcedRollback) {
-                editor.xtraData.isForcedRollback = false;
-                return;
-              } 
-              // Rollback to initial data
-              if (!editor.xtraData) editor.xtraData = {};
-              editor.xtraData.isForcedRollback = true;
-              editor.setData(text)
-            }
-          }} 
-        />
+      {TextEditorComponent && (
+        <div>
+          <TextEditorComponent 
+            text={text} 
+            readOnly={readOnly} 
+            onChange={(event: ChangeEvent, editor: any) => {
+              const data:string = editor.getData();
+              // console.log({ event, editor, data });
+              onChange(data);
+
+              if (readOnly) {
+                // console.log(editor.xtraDatatext);
+                if (editor.xtraData && editor.xtraData.isForcedRollback) {
+                  editor.xtraData.isForcedRollback = false;
+                  return;
+                } 
+                // Rollback to initial data
+                if (!editor.xtraData) editor.xtraData = {};
+                editor.xtraData.isForcedRollback = true;
+                editor.setData(text)
+              }
+            }}
+            onReady={(ckEditor) => {
+              setEditor(ckEditor);
+              onReady(ckEditor);
+            }} 
+          />
+        </div>
       )}
+
     </div>
 )
 

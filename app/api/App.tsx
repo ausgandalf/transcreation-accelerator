@@ -221,6 +221,7 @@ export async function getTranslationsByIds(graphql, ids:string, locale:string, m
         translations(locale: "${locale}" ${marketFilter}) {
           key
           value
+          updatedAt
         }
       }
     }
@@ -313,4 +314,138 @@ export async function deleteTranslations (graphql, id:string, keys:[string], loc
   } = await response.json();
 
   return {result: translationsRemove};
+}
+
+export async function getImages(graphql, isNext:number = 1, cursor?:string, limit:number = 12) {
+  const searchs = [
+    (isNext == 1) ? `first: ${limit}` : `last: ${limit}`,
+    cursor ? ((isNext == 1) ? `after:"${cursor}"` : `before:"${cursor}"`) : '',
+    `query:"media_type:image"`, 
+    `sortKey:UPDATED_AT`,
+    `reverse:true`,
+  ]
+  const params = searchs.filter((x) => x != '').join(',');
+
+  const response = await graphql(`
+  query getFiles {
+    files (
+      ${params}
+    ) {
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      nodes {
+        id
+        fileStatus
+        preview {
+          image {
+            id
+            url
+          }
+        }
+      }
+    }
+  }`);
+ 
+  const {
+    data: { files },
+  } = await response.json();
+
+  return {files};
+}
+
+
+export async function getImageURL(graphql, id:string) {
+  const response = await graphql(`
+  query getFileInfo {
+    node(id: "${id}") {
+      id
+      ... on MediaImage {
+        fileStatus
+        image {
+          url
+        }
+      }
+    }
+  }`);
+ 
+  const {
+    data: { node },
+  } = await response.json();
+
+  return node;
+}
+
+export async function getImageUploadEndpoint(graphql, filename:string, filesize:string, mimeType:string) {
+  const variables = {
+    input: [
+      {
+        resource: "IMAGE",
+        filename: filename, // "uploaded-image.jpg",
+        mimeType: mimeType, // "image/jpeg",
+        fileSize: filesize,
+        httpMethod: "POST"
+      },
+    ],
+  }
+  const response = await graphql(`
+  mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
+    stagedUploadsCreate(input: $input) {
+      stagedTargets {
+        url
+        resourceUrl
+        parameters {
+          name
+          value
+        }
+      }
+    }
+  }`, {
+    variables
+  });
+ 
+  const {
+    data: { stagedUploadsCreate : { stagedTargets } },
+  } = await response.json();
+
+  return {target: stagedTargets[0]};
+}
+
+export async function createImageOnStore(graphql, uploadedUrl:string) {
+  const variables = {
+    files: [
+      {
+        originalSource: uploadedUrl,
+        contentType: "IMAGE",
+      },
+    ],
+  }
+  const response = await graphql(`
+  mutation fileCreate($files: [FileCreateInput!]!) {
+    fileCreate(files: $files) {
+      files {
+        preview {
+          image {
+            url
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+  `, {
+    variables
+  });
+ 
+  const {
+    data: { fileCreate : { files } },
+  } = await response.json();
+
+  return {url: files[0]};
 }

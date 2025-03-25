@@ -33,3 +33,7 @@
 	background-color: var(--p-color-bg);
 	opacity: 0.4;
 }
+
+.insertImageFromStoreButton .ck-icon {
+	background: url("/images/icons/image-upload.svg");
+}

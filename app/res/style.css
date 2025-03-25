@@ -172,3 +172,27 @@
   background-size: 200%;
   height: 100%; width: 100%;
 }
+
+.insertImageItem {
+  border: solid 1px var(--p-color-border);
+  border-radius: 10px;
+  padding: 0;
+  background: transparent;
+  text-align: center;
+  cursor: pointer;
+}
+
+.label--updatedAt {
+  position: absolute;
+  padding: 2px 4px 2px 10px;
+  border-radius: 10px 0 0 0;
+  background: var(--p-color-bg);
+  bottom: 0;
+  right: 0;
+  opacity: 0;
+  transition: opacity 0.2s linear;
+  z-index: 10;
+}
+.cell--target:hover .label--updatedAt {
+  opacity: 1;
+}
