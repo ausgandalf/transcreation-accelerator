@@ -180,6 +180,12 @@ export default function App() {
         <Page
           title="Localized content:"
           titleMetadata={renderLocales()}
+          primaryAction = {{
+            content: 'Auto-translate',
+            onAction: () => {
+              // TODO - Auto translation logic will be planted.
+            }
+          }}
           secondaryActions={[{
             content: 'View Store',
             disabled: shop && (shop != '') ? false : true,
