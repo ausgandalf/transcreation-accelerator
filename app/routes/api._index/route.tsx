@@ -145,7 +145,7 @@ export async function action({ request, params }) {
     let endLoop = false;
     while (!endLoop) {
       try {
-        result = await getImages(admin.graphql, data.isNext, data.cursor, data.perPage);
+        result = await getImages(admin.graphql, data.isNext, data.cursor, data.perPage, data.name);
         endLoop = true;
       } catch (e) {}
     }

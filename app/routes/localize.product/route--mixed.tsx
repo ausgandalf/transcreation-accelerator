@@ -26,22 +26,32 @@ import {
   TextField,
 } from "@shopify/polaris";
 import {
+  FilterIcon,
   ImageIcon,
   ExternalIcon,
+  MaximizeIcon,
 } from '@shopify/polaris-icons';
+
+import polarisTranslations from "@shopify/polaris/locales/en.json";
 
 import { authenticate, login } from "../../shopify.server";
 
+import { SelectPop } from 'app/components/SelectPop';
+import { MarketsPop } from 'app/components/MarkertsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { getRedirect, makeReadable, getReadableDate } from 'app/components/Functions';
+import { isSaveBarOpen, getRedirect, makeReadable, getReadableDate, enterFullscreen, exitFullscreen } from 'app/components/Functions';
+import { getProducts, getProduct, getTranslationsByIds, setTranslations, deleteTranslations } from 'app/api/App';
+import { CheckListPop } from 'app/components/CheckListPop';
 
 import { thStyle, cellStyle, sourceCellStyle, xtraCellStyle, targetCellStyle, textareaStyle } from "app/res/style";
-import { SkeletonLocalize, SkeletonTranslation, SkeletonTranslationContent } from '../../components/Skeletons';
-import { ResourcePanel } from './list';
-
+import { Skeleton, SkeletonResources, SkeletonTranslation, SkeletonTranslationContent } from '../../components/Skeletons';
 import { transKeys } from 'app/api/data';
 import { Editor } from 'app/components/Editor';
 import { InsertImageModal } from 'app/components/Editor--CKEditor--InsertImageModal';
+
+import { validateHeaderName } from 'http';
+import { json } from 'stream/consumers';
+
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 
@@ -142,7 +152,21 @@ export default function App() {
 
   const fetcher = useFetcher();
   
+  const perPage = 10; // Let's keep this fixed for now
+  const [resources, setResources] = useState([]);
   const [selectedResource, setSelectedResource] = useState(false);
+  const [pagedResources, setPagedResources] = useState([]);
+  const [page, setPage] = useState(0);
+  const [cursor, setCursor] = useState(''); // if empty, means reached to the end.
+  const [knownTotalPage, setKnownTotalPage] = useState(0);
+  const [filterStatus, setFilterStatus] = useState('');
+
+  const totalPage = Math.ceil(resources.length / perPage);
+  const isFirstLoad = typeof fetcher.data == 'undefined';
+  const isLastPage = (cursor == '') && !(page < totalPage - 1);
+  const shouldLoad = (cursor != '') && !(page < totalPage);
+  const hasPagination = (page > 0) || !isLastPage;
+
 
   const [transData, setTransData] = useState({});
   const [transDataObject, setTransDataObject] = useState({});
@@ -186,7 +210,6 @@ export default function App() {
       transObj.translatableContentDigest = transObj.digest;
       delete transObj.digest;
       delete transObj.type;
-      delete transObj.updated;
 
       formStateDispatch({ 
         type: 'setTraslation',
@@ -240,7 +263,24 @@ export default function App() {
     // console.log(fetcher);
     if (!fetcher.data) {
     } else {
-      if (fetcher.data.action == 'product_read') {
+      if (fetcher.data.action == 'product_list') {
+        
+        setKnownTotalPage(fetcher.data.total);
+        if (fetcher.data.products.pageInfo.hasNextPage) {
+          setCursor(fetcher.data.products.pageInfo.endCursor);
+        } else {
+          setCursor(''); // Disable loading
+        }
+        const newResources = [...resources, ...fetcher.data.products.nodes];
+        setResources(newResources);
+
+        // Select first resource, if nothing selected.
+        if (!selectedResource && (fetcher.data.products.nodes.length > 0)) selectResource(fetcher.data.products.nodes[0]);
+        
+        // Remove loading anim
+        setIsResourceLoading(false);
+
+      } else if (fetcher.data.action == 'product_read') {
         // TODO
         if (fetcher.data.transdata && (fetcher.data.product.id == selectedResource.id)) {
 
@@ -286,31 +326,24 @@ export default function App() {
         }
       } else if (fetcher.data.action == 'trans_submit') {
         // TODO
-        
-        // Reloading...
-        // selectResource(selectedResource);
-
-        // Update into new data
-        const newTransDataObj = structuredClone(transDataObject);
-
-        fetcher.data.results.map((x, i) => {
-          if (x.set && x.set.result && x.set.result && x.set.result) {
-            // Update
-            const resId = x.set.result.id;
-            x.set.result.translations.map((y, j) => {
-              newTransDataObj[resId][y.key]['updated'] = y.updatedAt;
-              updateTranslation (resId, y.key, y.value);
-            })
-          }
-        })
-        setTransDataObject(newTransDataObj);
-
         setCleanFormState(structuredClone(formState));
         setIsLoading(false);
         shopify.toast.show("The translations have been saved.", {duration: 2000});
       }
     }
   }, [fetcher.data]);
+
+  useEffect(() => {
+    let showingResources = resources.slice(page * perPage, (page + 1) * perPage);
+    if (selectedResource) {
+      const isIncluded = showingResources.some((x) => (x.handle == selectedResource?.handle));
+      if (!isIncluded) {
+        showingResources = [selectedResource, ...showingResources];
+      }
+    }
+    setPagedResources(showingResources);
+  }, [resources, page]);
+
 
   useEffect(() => {
     // console.log('reload by market, locale change...');
@@ -327,6 +360,29 @@ export default function App() {
       }, 0);
     }
   }, [init]);
+
+  const loadProducts = (props:{}) => {
+    // if (!isFirstLoad && isLastPage) return;
+    setIsResourceLoading(true);
+    const data = {
+      cursor: props.cursor,
+      perPage: props.perPage,
+      status: props.status,
+      action: 'product_list',
+    };
+    // console.log('list products...');
+    fetcher.submit(data, { action: "/api", method: "post" });
+    // submit(data, { method: "post" });
+  };
+
+  const loadProductsByState = () => {
+    loadProducts({cursor, perPage, status: filterStatus});
+  };
+
+  useEffect(() => {
+    // console.log('Is first load?', isFirstLoad, 'Should load?', shouldLoad, 'Is last page?', isLastPage, cursor, page);
+    if (isFirstLoad || shouldLoad) loadProductsByState();
+  }, [resources, page]);
 
   const selectResource = (item) => {
     setSelectedResource(item);
@@ -358,6 +414,60 @@ export default function App() {
     } else {
       return makeReadable(key);
     }
+  }
+
+  function getKeyType(key:string) {
+    if (key in transKeys) {
+      return transKeys[key].type;
+    } else {
+      return 'text';
+    }
+  }
+
+  const filters = [
+    {value: '', label: 'All'},
+    {value: 'ACTIVE', label: 'Active'},
+    {value: 'DRAFT', label: 'Draft'},
+    {value: 'ARCHIVED', label: 'Archived'},
+  ]
+
+  const renderItem = (item:{}) => {
+    return (
+      <a 
+        className='justClickable' 
+        href="#" 
+        onClick={(e) => {
+          e.preventDefault();
+
+          if (selectedResource.id == item.id) return; 
+
+          if (isSaveBarOpen()) {
+            shopify.toast.show("You have unsaved changes. ", {duration: 2000});
+            shopify.saveBar.leaveConfirmation('translation-save-bar');
+            return;
+          }
+          
+          selectResource(item);
+
+        }}>
+        <InlineStack gap='100' wrap={false}>
+          {item.image ? (
+            <Thumbnail
+              source={item.image.preview.image.url + '&width=24'}
+              size="extraSmall"
+              alt={item.title}
+            />
+          ) : (
+            <Thumbnail
+              source={ImageIcon}
+              size="extraSmall"
+              alt={item.title}
+            />
+          )}
+          <Text as='p' variant='headingSm'>{item.title}</Text>
+        </InlineStack>
+      </a>
+    )
   }
 
   const renderTransSource = (type: string, value:string) => {
@@ -398,7 +508,7 @@ export default function App() {
       {editorObj}
       { transDataObject[id][key]['updated'] && (
         <div className='label--updatedAt'>
-          <Text as='span' variant='bodyXs'>{ 'Last saved ' + getReadableDate(new Date(transDataObject[id][key]['updated'])) }</Text>
+          <Text as='span' variant='bodyXs'>{ 'Updated at ' + getReadableDate(new Date(transDataObject[id][key]['updated'])) }</Text>
         </div>
       )}
 
@@ -415,7 +525,7 @@ export default function App() {
   return (
     <Box>
       {!init || !isLoaded ? (
-        <SkeletonLocalize />
+        <Skeleton />
       ) : (
         <Box minHeight='100%'>
           {isLoading && (<LoadingScreen />)}
@@ -461,7 +571,72 @@ export default function App() {
           <div className='fullscreenLayout withTopBar'>
             <div className='layout layout--translate'>
               <div className='layout__section layout__section--resource'>
-                <ResourcePanel onSelect={selectResource} />
+                <div className='panel panel--resource' style={{background:'#fff',height:'100%', position:'relative'}}>
+                    {isResourceLoading && (<LoadingScreen position='absolute' />)}
+                    <Box padding='200'>
+                      <InlineStack align='space-between' blockAlign='center'>
+                        <Text as='p'>Showing {pagedResources.length} of {knownTotalPage} Items</Text>
+                        <CheckListPop 
+                          label={<Button icon={FilterIcon} accessibilityLabel='Filter' />} 
+                          multiple={false} 
+                          options={filters} 
+                          checked={filters.length > 0 ? [filters[0].value] : []}
+                          onChange={(selected: string) => {
+                            // TODO
+                            document.body.classList.toggle('resource-panel--open', false);
+                            setFilterStatus(selected[0]);
+
+                            // Initialize
+                            setPage(0);
+                            setCursor('');
+                            setResources([]);
+
+                            // console.log('refreshing...', {cursor: '', perPage, status: selected[0]});
+                            loadProducts({cursor: '', perPage, status: selected[0]});
+                          }} 
+                        />
+                      </InlineStack>
+                    </Box>
+
+                    <Divider/>
+
+                    <div style={{
+                      height: hasPagination ? 'calc(100% - 110px' : 'calc(100% - 50px',
+                      overflow:'auto',
+                    }}>
+
+                      { (pagedResources.length > 0) ? pagedResources.map((x, i) => (
+                        <div 
+                          key={'product-' + x.handle}
+                          style={{
+                            background: (x.handle == selectedResource.handle) ? 'var(--p-color-bg-surface-brand-selected)' : 'transparent',
+                            padding: '10px 20px',
+                          }}
+                        >
+                          { renderItem(x) }
+                        </div>
+                      )) : <SkeletonResources />}
+
+                    </div>
+                    
+                    {(hasPagination) && (
+                      <Box padding='400' borderBlockStartWidth='0165' borderColor='border'>
+                        <BlockStack inlineAlign='center'>
+                          <Pagination
+                            hasPrevious = {page > 0}
+                            onPrevious={() => {
+                              setPage((prevPage) => Math.max(prevPage - 1, 0));
+                            }}
+                            hasNext = {!isLastPage}
+                            onNext={() => {
+                              setPage((prevPage) => Math.min(prevPage + 1, knownTotalPage-1));
+                            }}
+                          />
+                        </BlockStack>
+                      </Box>
+                    )}
+                  
+                </div>
               </div>
               
               <div className='layout__section layout__section--translate'>

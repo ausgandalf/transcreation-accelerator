@@ -19,13 +19,16 @@ import {
   Tooltip,
   Spinner,
   DropZone,
+  Card,
+  EmptyState,
 } from '@shopify/polaris';
 import {
   CheckCircleIcon,
-  ImageIcon
+  SearchIcon,
 } from '@shopify/polaris-icons';
 
 import {Modal, TitleBar, useAppBridge} from '@shopify/app-bridge-react';
+
 import { useFetcher } from "@remix-run/react";
 
 import { useCallback, useEffect, useState } from 'react';
@@ -50,6 +53,7 @@ export const InsertImageModal = (props: InsertImageModalProps) => {
 
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [insertSize, setInsertSize] = useState('');
   const [altText, setAltText] = useState('');
@@ -73,6 +77,7 @@ export const InsertImageModal = (props: InsertImageModalProps) => {
     initSelection();
     setCursor(cursor);
     const data = {
+      name: searchName,
       cursor: cursor,
       perPage: 12,
       action: 'file_list',
@@ -90,7 +95,8 @@ export const InsertImageModal = (props: InsertImageModalProps) => {
   }
 
   const getUploadEndPoint = (file:File) => {
-    setIsLoading(true);
+    // setIsLoading(true);
+    setIsUploading(true);
 
     const data = {
       filename: file.name,
@@ -169,13 +175,16 @@ export const InsertImageModal = (props: InsertImageModalProps) => {
             }, { action:"/api", method: "post" });
           } else {
             // Error
-            setIsLoading(false);
+            // setIsLoading(false);
+            setIsUploading(false);
+            shopify.toast.show("Something went wrong. Please try again later.", {duration: 1000, isError:true});
             throw new Error('Network response was not ok');
           }
         });
         
       } else if (fetcher.data.action == 'create_image') {
         // Reload
+        setIsUploading(false);
         loadImages();
       } else if (fetcher.data.action == 'get_image_url') {
         //
@@ -212,6 +221,8 @@ export const InsertImageModal = (props: InsertImageModalProps) => {
   const [imageFileBlob, setImageFileBlob] = useState<Blob>();
   const [imageBase64, setImageBase64] = useState<string>();
   const [openFileDialog, setOpenFileDialog] = useState(false);
+
+  const [searchName, setSearchName] = useState('');
 
   const validImageTypes = ['image/gif', 'image/jpeg', 'image/png', 'image/avif', 'image/svg+xml'];
   const handleDropZoneDrop = useCallback(
@@ -254,63 +265,104 @@ export const InsertImageModal = (props: InsertImageModalProps) => {
         <Box padding="0">
           <div style={{position:'relative', overflow:'hidden'}}>
             <BlockStack>
-              <Box padding="400">
-                <div style={{
-                  display:'grid',
-                  gridTemplateColumns:'repeat(4, 1fr)',
-                  gridGap:'10px',
-                  minHeight: '428px',
-                  position: 'relative',
-                }} onClick={() => setSelectedImage(null)}>
-                  {isLoading && (<LoadingScreen position='absolute' />)}
-                  {imageList.map((x, i) => (
-                    <div key={x.id} style={{
-                      fontSize: '0',
-                      textAlign: 'center',
-                      // transform: (selectedImage?.id == x.id) ? 'scale(0.98)' : 'none',
-                      // transition: 'transform .2s linear',
-                    }}>
-                      <button disabled={x.url == ''} className='insertImageItem' onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-
-                        if (selectedImage?.id == x.id) {
-                          setSelectedImage(null);
-                        } else {
-                          setSelectedImage(x);
-                        }
-                      }} style={{
-                        position:'relative',
-                        borderColor: (selectedImage?.id == x.id) ? 'var(--p-color-border-focus)' : 'var(--p-color-border)',
-                        transition: 'border .2s linear',
-                      }}>
-
-                        {(x.url == '') && (
-                          <div style={{width:'115px',height:'120px',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                            <Spinner accessibilityLabel="Loading preview..." size="small" />
-                          </div>
-                        )}
-                        {(x.url != '') && (
-                          <img src={x.url} style={{width:'115px',height:'120px',objectFit:'contain'}} />
-                        )}
-
-                        {(selectedImage?.id == x.id) && (
-                          <div style={{
-                            position: 'absolute',
-                            right: '0',
-                            top: '0',
-                            transform: 'translate(50%, -50%)',
-                          }}>
-                            <Icon source={CheckCircleIcon} tone='emphasis'/>
-                          </div>
-                        )}
-                        
-                      </button>
+              <Box padding="400" paddingBlockEnd="100">
+                {/* <Card background='bg-fill-active'> */}
+                  <InlineStack blockAlign='end' gap="200" wrap={false} >
+                    <div onKeyDown={(e) => {
+                      if (e.code == "Enter") {
+                        loadImages();
+                      }
+                    }} style={{width:'100%'}}>
+                      <TextField 
+                        label='Search by file name:'
+                        labelHidden
+                        placeholder='Search by file name'
+                        value={searchName}
+                        prefix={<Icon source={SearchIcon} />}
+                        onChange={setSearchName} 
+                        autoComplete='off'
+                      />
                     </div>
-                  ))}
-                </div>
+                    <Box>
+                      <Button variant='secondary' onClick={() => { loadImages(); }}>Search</Button>
+                    </Box>
+                  </InlineStack>
+                {/* </Card> */}
               </Box>
+              <Box padding="400">
+                {(imageList.length > 0) && (
+                  <div style={{
+                    display:'grid',
+                    gridTemplateColumns:'repeat(4, 1fr)',
+                    gridTemplateRows:'repeat(3, 1fr)',
+                    gridGap:'10px',
+                    minHeight: '428px',
+                    position: 'relative',
+                  }} onClick={() => setSelectedImage(null)}>
+                    {isLoading && (<LoadingScreen position='absolute' />)}
+                    {imageList.map((x, i) => (
+                      <div key={x.id} style={{
+                        fontSize: '0',
+                        textAlign: 'center',
+                        // transform: (selectedImage?.id == x.id) ? 'scale(0.98)' : 'none',
+                        // transition: 'transform .2s linear',
+                      }}>
+                        <button disabled={x.url == ''} className='insertImageItem' onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+  
+                          if (selectedImage?.id == x.id) {
+                            setSelectedImage(null);
+                          } else {
+                            setSelectedImage(x);
+                          }
+                        }} style={{
+                          position:'relative',
+                          borderColor: (selectedImage?.id == x.id) ? 'var(--p-color-border-focus)' : 'var(--p-color-border)',
+                          transition: 'border .2s linear',
+                        }}>
+  
+                          {(x.url == '') && (
+                            <div style={{width:'125px',height:'125px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                              <Spinner accessibilityLabel="Loading preview..." size="small" />
+                            </div>
+                          )}
+                          {(x.url != '') && (
+                            <img src={x.url} style={{width:'125px',height:'125px',objectFit:'contain'}} />
+                          )}
+  
+                          {(selectedImage?.id == x.id) && (
+                            <div style={{
+                              position: 'absolute',
+                              right: '0',
+                              top: '0',
+                              transform: 'translate(50%, -50%)',
+                            }}>
+                              <Icon source={CheckCircleIcon} tone='emphasis'/>
+                            </div>
+                          )}
+                          
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
+                {(imageList.length < 1) && (
+                  <div style={{
+                    minHeight: '428px',
+                    position: 'relative',
+                  }} onClick={() => setSelectedImage(null)}>
+                    <EmptyState
+                      heading="No images found."
+                      image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                    >
+                      <p>Please try new search.</p>
+                    </EmptyState>
+                  </div>
+                )}
+              
+              </Box>
               
               <div  style={{
                 position:'absolute', 
@@ -369,7 +421,7 @@ export const InsertImageModal = (props: InsertImageModalProps) => {
               <Button variant='secondary' onClick={() => {
                 document.getElementById('insert-image-modal').hide();
               }}>Cancel</Button>
-              <Button variant='secondary' onClick={toggleOpenFileDialog}>Upload File</Button>
+              <Button variant='secondary' onClick={toggleOpenFileDialog} loading={isUploading}>Upload File</Button>
               <Button disabled={!selectedImage} variant='primary' onClick={() => {
                 if (document.currentEditor) {
                   document.currentEditor.model.change( writer => {

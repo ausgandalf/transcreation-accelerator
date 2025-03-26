@@ -113,22 +113,30 @@ export function getReadableDate(date) {
   const hours = Math.round(minutes / 60);
   const days = Math.round(hours / 24);
 
+  const weekDay = date.toLocaleString('en-US',{ weekday: 'short'});
+  const timeLabel = date.toLocaleString('en-US',{ hour: 'numeric', minute: 'numeric', hour12:true });
+  const dateLabel = date.toLocaleString('en-US',{ month: 'short', day: 'numeric'});
+  
   if (seconds < 60) {
     return "just now";
   } else if (minutes < 60) {
     return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
   } else if (hours < 24) {
-    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    // return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    return `today at ${timeLabel}`;
   } else if (days === 1) {
-    return "yesterday";
+    return `yesterday at ${timeLabel}`;
   } else if (days < 7) {
-    return `${days} day${days > 1 ? 's' : ''} ago`;
+    // return `${days} day${days > 1 ? 's' : ''} ago`;
+    return `${weekDay} at ${timeLabel}`;
   } else if (days < 30) {
-      const weeks = Math.floor(days / 7);
-      return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+    // const weeks = Math.floor(days / 7);
+    // return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+    return `${dateLabel} at ${timeLabel}`;
   } else if (days < 365) {
-      const months = Math.floor(days / 30);
-      return `${months} month${months > 1 ? 's' : ''} ago`;
+    // const months = Math.floor(days / 30);
+    // return `${months} month${months > 1 ? 's' : ''} ago`;
+    return `${dateLabel} at ${timeLabel}`;
   } else {
     const years = Math.floor(days / 365);
     return `${years} year${years > 1 ? 's' : ''} ago`;

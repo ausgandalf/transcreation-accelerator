@@ -252,6 +252,7 @@ export async function setTranslations (graphql, id:string, translations:[], mark
         translations {
           key
           value
+          updatedAt
         }
       }
     }`,
@@ -274,7 +275,7 @@ export async function setTranslations (graphql, id:string, translations:[], mark
     data: { translationsRegister },
   } = await response.json();
 
-  return {result: translationsRegister};
+  return {result: {...translationsRegister, id}};
 }
 
 export async function deleteTranslations (graphql, id:string, keys:[string], locale:string, market:string =  '') {
@@ -316,11 +317,11 @@ export async function deleteTranslations (graphql, id:string, keys:[string], loc
   return {result: translationsRemove};
 }
 
-export async function getImages(graphql, isNext:number = 1, cursor?:string, limit:number = 12) {
+export async function getImages(graphql, isNext:number = 1, cursor?:string, limit:number = 12, name:string = '') {
   const searchs = [
     (isNext == 1) ? `first: ${limit}` : `last: ${limit}`,
     cursor ? ((isNext == 1) ? `after:"${cursor}"` : `before:"${cursor}"`) : '',
-    `query:"media_type:image"`, 
+    (name != '') ? `query:"filename:'${name}' AND media_type:image"` : `query:"media_type:image"`, 
     `sortKey:UPDATED_AT`,
     `reverse:true`,
   ]
