@@ -49,6 +49,7 @@ import { sections } from 'app/api/data';
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const { admin, session } = await authenticate.admin(request);
+  // const { storefront } = await authenticate.public.appProxy(request);
   const { shop } = session;
 
   let locales = [];
@@ -153,6 +154,8 @@ export default function App() {
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const nav = useNavigation();
   const isSaving =
@@ -174,10 +177,21 @@ export default function App() {
       return;
     }
 
-    setIsLoading(true);
-    let url = `${path}?shopLocale=${locale}`;
-    if (market) url += `&market=${market}`;
-    navigate(url);
+    // setIsLoading(true);
+    // let url = `${path}?shopLocale=${locale}`;
+    // if (market) url += `&market=${market}`;
+    // navigate(url);
+
+    setSearchParams((prev) => {
+      prev.set("shopLocale", locale);
+      if (market) {
+        prev.set("market", market);
+      } else {
+        prev.delete("market");
+      }
+      return prev;
+    });
+
     return;
   }
 
@@ -218,6 +232,9 @@ export default function App() {
 
               // Redirect
               if (y.content != pathLabel()) {
+
+                let url = `${y.url}?shopLocale=${currentLocale.locale}`;
+                if (currentMarket.handle) url += `&market=${currentMarket.handle}`;
                 setIsLoading(true);
                 navigate(`${y.url}?shopLocale=${currentLocale.locale}`);
 

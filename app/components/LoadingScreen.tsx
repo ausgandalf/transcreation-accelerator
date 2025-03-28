@@ -2,15 +2,17 @@ import {Spinner} from '@shopify/polaris';
 
 interface LoadingScreenProps {
   position?: string,
+  opacity?: string,
 }
 
 const defaultProps: LoadingScreenProps = {
   position: 'fixed',
+  opacity: '0.8',
 }
 
 export const LoadingScreen = (props: LoadingScreenProps) => {
   props = {...defaultProps, ...props}
-  const { position } = props;
+  const { position, opacity } = props;
 
   return(
     <div className='loadingScreen' style={{
@@ -19,7 +21,7 @@ export const LoadingScreen = (props: LoadingScreenProps) => {
       right: '0',
       top: '0',
       bottom: '0',
-      backgroundColor: 'rgba(255,255,255,0.8)',
+      backgroundColor: `rgba(255,255,255,${opacity})`,
       zIndex: '1000',
     }}>
       <div className='loadingScreenInner' style={{

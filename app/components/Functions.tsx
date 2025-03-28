@@ -1,5 +1,5 @@
 import createApp from '@shopify/app-bridge';
-import { Redirect, Fullscreen } from "@shopify/app-bridge/actions";
+import { Redirect, Modal, Fullscreen } from "@shopify/app-bridge/actions";
 import {
   Icon,
   Tooltip,
@@ -141,4 +141,16 @@ export function getReadableDate(date) {
     const years = Math.floor(days / 365);
     return `${years} year${years > 1 ? 's' : ''} ago`;
   }
+}
+
+export function getIDBySection(id?:string|null, section?:string) {
+  let idv = '';
+  if (!id) return '';
+
+  switch (section) {
+    case 'product':
+      idv = `gid://shopify/Product/${id}`;
+      break;
+  }
+  return idv;
 }

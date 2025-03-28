@@ -118,6 +118,31 @@ export async function getProducts(graphql, cursor?:string, status?:string, limit
   return {products, total: productsCount.count};
 }
 
+export async function getProductInfo(graphql, id:string) {
+
+  const response = await graphql(`
+  query getProductInfo {
+    product(id: "${id}") {
+      id
+      handle
+      title
+      image:featuredMedia {
+        preview {
+          image {
+            url
+          }
+        }
+      }
+    }
+  }`);
+ 
+  const {
+    data: { product },
+  } = await response.json();
+
+  return product;
+}
+
 
 export async function getProduct(graphql, id:string) {
 
