@@ -125,6 +125,21 @@ export const SkeletonTranslationContent = () => {
 export const SkeletonLocalize = () => {
   return (
     <Box minHeight='100%'>
+
+      <Box>
+        <div style={{background:'#ffffff', height:'56px', display:'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+          <Box width="100px" paddingInlineStart='600'>
+            <SkeletonDisplayText />
+          </Box>
+          <Box width="300px">
+            <SkeletonBodyText lines={1} />
+          </Box>
+          <Box width="160px">
+            <SkeletonDisplayText />
+          </Box>
+        </div>
+      </Box>
+      
       <div className='fullscreenLayout withTopBar'>
         <div className='layout layout--translate'>
           <div>

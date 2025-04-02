@@ -118,6 +118,42 @@ export async function getProducts(graphql, cursor?:string, status?:string, limit
   return {products, total: productsCount.count};
 }
 
+export async function getProductsWithOptions (graphql, cursor?:string, limit:number = 50) {
+  const first = `first: ${limit}`;
+  const start = cursor ? `after:"${cursor}"` : '';
+  const productParams = [first, start].filter((x) => x != '').join(',');
+
+  const response = await graphql(`
+  query getProducts {
+    products(${productParams}) {
+      nodes {
+        id
+        handle
+        options {
+          id
+          name
+          optionValues {
+            id
+            name
+          }
+        }
+      }
+      pageInfo {
+        startCursor
+        endCursor
+        hasNextPage
+        hasPreviousPage
+      }
+    }
+  }`);
+ 
+  const {
+    data: { products },
+  } = await response.json();
+
+  return { products };
+}
+
 export async function getProductInfo(graphql, id:string) {
 
   const response = await graphql(`

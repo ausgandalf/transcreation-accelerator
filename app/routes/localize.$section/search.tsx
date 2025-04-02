@@ -17,128 +17,137 @@ import {
 } from '@shopify/polaris-icons';
 
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { isSaveBarOpen } from 'app/components/Functions';
+import { isSaveBarOpen, extractId } from 'app/components/Functions';
 import { CheckListPop } from 'app/components/CheckListPop';
 
 import { SkeletonResources } from '../../components/Skeletons';
 import { search } from '@shopify/app-bridge/actions/Picker';
 
-interface ResourcePanelProps {
-  selected?: any,
-  section?: string,
+interface SearchPanelProps {
+  q?: string,
   visible: boolean,
+  section?: string,
+  markets: [],
   onSelect: Function,
 }
 
-const defaultProps: ResourcePanelProps = {
-  selected: false,
+const defaultProps: SearchPanelProps = {
+  q: '',
   visible: true,
   section: 'product',
+  markets: [],
   onSelect: () => {}
 }
 
-export const ResourcePanel = (props:ResourcePanelProps) => {
+export const SearchPanel = (props:SearchPanelProps) => {
   
   props = {...defaultProps, ...props}
-  const { selected, section, visible, onSelect } = props;
+  const { q, visible, section, onSelect, markets } = props;
   
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
   
   const fetcher = useFetcher();
   
+  const [isResourceLoading, setIsResourceLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [isResourceLoading, setIsResourceLoading] = useState(false);
+
 
   const perPage = 10; // Let's keep this fixed for now
-  const [resources, setResources] = useState([]);
-  const [selectedResource, setSelectedResource] = useState(selected);
-  const [pagedResources, setPagedResources] = useState([]);
+  const [keyword, setKeyword] = useState(q);
   const [page, setPage] = useState(0);
-  const [cursor, setCursor] = useState(''); // if empty, means reached to the end.
-  const [knownTotalPage, setKnownTotalPage] = useState(0);
-  const [filterStatus, setFilterStatus] = useState('');
+  const [total, setTotal] = useState(0);
 
-  const totalPage = Math.ceil(resources.length / perPage);
-  const isFirstLoad = typeof fetcher.data == 'undefined';
-  const isLastPage = (cursor == '') && !(page < totalPage - 1);
-  const shouldLoad = (cursor != '') && !(page < totalPage);
-  const hasPagination = (page > 0) || !isLastPage;
+  const lastPage = Math.floor(total / perPage);
+  const hasPagination = (lastPage > 0);
+  const hasNext = (page < lastPage);
+  const hasPrev = (page > 0);
   
-  const selectResource = (item) => {
+  
+  const [resources, setResources] = useState({});
+  const [selectedResource, setSelectedResource] = useState({});
+
+  const selectResource = (item, parentItem) => {
+    console.log(item);
+    if (selectedResource.id == item.id) return;
 
     const searchParamValues = ((prev) => {
-      prev.delete('highlight');
+
+      if (extractId(item.parentId) == item.resourceId) {
+        prev.set("highlight", item.field);
+      } else {
+        prev.set("highlight", item.resourceId);
+      }
+
+
+      if (item.locale && (prev.get('shopLocale') != item.locale)) {
+        prev.set("shopLocale", item.locale);
+      }
+      if (!item.market) {
+        prev.delete('market');
+      } else if (prev.get('market') != item.market) {
+        let marketHandle = '';
+        markets.some((x, i) => {
+          if (x.name == item.market) {
+            marketHandle = x.handle;
+            return true;
+          }
+        })
+        if (marketHandle) prev.set("market", marketHandle);
+      }
       return prev;
     })(searchParams);
 
     setSelectedResource(item);
-    onSelect(item, searchParamValues);
+    onSelect(parentItem, searchParamValues);
   }
 
   useEffect(() => {
-    setSelectedResource(selected);
-  }, [selected]);
+    setKeyword(q);
+  }, [q]);
+
+  useEffect(() => {
+    setSelectedResource({});
+  }, [visible]);
+
+  useEffect(() => {
+    find();
+  }, [keyword, page]);
+
 
   useEffect(() => {
     // console.log(fetcher);
     if (!fetcher.data) {
     } else {
-      if (fetcher.data.action == 'product_list') {
+      if (fetcher.data.action == 'trans_find') {
         
-        setKnownTotalPage(fetcher.data.total);
-        if (fetcher.data.products.pageInfo.hasNextPage) {
-          setCursor(fetcher.data.products.pageInfo.endCursor);
-        } else {
-          setCursor(''); // Disable loading
-        }
-        const newResources = [...resources, ...fetcher.data.products.nodes];
-        setResources(newResources);
+        const {total, result} = fetcher.data.result;
+        setTotal(total);
 
-        // Select first resource, if nothing selected.
-        if (!selectedResource && (fetcher.data.products.nodes.length > 0)) selectResource(fetcher.data.products.nodes[0]);
+        console.log(result);
         
-        // Remove loading anim
+        setResources(structuredClone(result));
         setIsResourceLoading(false);
 
       }
     }
   }, [fetcher.data]);
 
-  useEffect(() => {
-    let showingResources = resources.slice(page * perPage, (page + 1) * perPage);
-    if (selectedResource) {
-      const isIncluded = showingResources.some((x) => (x.handle == selectedResource?.handle));
-      if (!isIncluded) {
-        showingResources = [selectedResource, ...showingResources];
-      }
-    }
-    setPagedResources(showingResources);
-  }, [resources, page]);
-
-  const loadProducts = (props:{}) => {
-    // if (!isFirstLoad && isLastPage) return;
+  const find = () => {
+    console.log(keyword, page);
+    if (keyword.length < 2) return;
+    
     setIsResourceLoading(true);
     const data = {
-      cursor: props.cursor,
-      perPage: props.perPage,
-      status: props.status,
-      action: 'product_list',
+      q: keyword,
+      perPage,
+      page,
+      action: 'trans_find',
     };
-    // console.log('list products...');
+    
     fetcher.submit(data, { action: "/api", method: "post" });
-    // submit(data, { method: "post" });
   };
-
-  const loadProductsByState = () => {
-    loadProducts({cursor, perPage, status: filterStatus});
-  };
-
-  useEffect(() => {
-    // console.log('Is first load?', isFirstLoad, 'Should load?', shouldLoad, 'Is last page?', isLastPage, cursor, page);
-    if (isFirstLoad || shouldLoad) loadProductsByState();
-  }, [resources, page]);
 
   const filters = [
     {value: '', label: 'All'},
@@ -147,7 +156,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
     {value: 'ARCHIVED', label: 'Archived'},
   ]
 
-  const renderItem = (item:{}) => {
+  const renderItem = (item:{}, parentItem:{}) => {
     return (
       <a 
         className='justClickable' 
@@ -163,11 +172,11 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
             return;
           }
           
-          selectResource(item);
+          selectResource(item, parentItem);
 
         }}>
         <InlineStack gap='100' wrap={false}>
-          {item.image ? (
+          {/* {item.image ? (
             <Thumbnail
               source={item.image.preview.image.url + '&width=24'}
               size="extraSmall"
@@ -179,8 +188,8 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
               size="extraSmall"
               alt={item.title}
             />
-          )}
-          <Text as='p' variant='headingSm'>{item.title}</Text>
+          )} */}
+          <Text as='p' variant='bodyMd'><span dangerouslySetInnerHTML={{__html: item.highlight}}></span></Text>
         </InlineStack>
       </a>
     )
@@ -194,7 +203,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
         {isResourceLoading && (<LoadingScreen position='absolute' />)}
         <Box padding='200'>
           <InlineStack align='space-between' blockAlign='center'>
-            <Text as='p'>Showing {pagedResources.length} of {knownTotalPage} Items</Text>
+            <Text as='p'>Showing # of # Items</Text>
             <CheckListPop 
               label={<Button icon={FilterIcon} accessibilityLabel='Filter' />} 
               multiple={false} 
@@ -224,31 +233,40 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
           overflow:'auto',
         }}>
 
-          { (pagedResources.length > 0) ? pagedResources.map((x, i) => (
-            <div 
-              key={'product-' + x.handle}
-              style={{
-                background: (x.handle == selectedResource.handle) ? 'var(--p-color-bg-surface-brand-selected)' : 'transparent',
-                padding: '10px 20px',
-              }}
-            >
-              { renderItem(x) }
-            </div>
-          )) : <SkeletonResources />}
+          {Object.keys(resources).map((key, index) => {
+            const parentItem = resources[key].info;
+            return (
+              <div key={'search-section-' + parentItem.id} className='item-blocks'>
+                <div className='item item--section'>
+                  <Text as='p' variant='headingMd'>{parentItem.title}</Text>
+                </div>
+                {resources[key].items.map((x, i) => (
+                  <div 
+                    key={'search-' + x.id}
+                    className={'item' + ((x.id == selectedResource.id) ? ' selected' : '')}
+                  >
+                    { renderItem(x, parentItem) }
+                  </div>
+                ))}
+              </div>
+            );
+          })}
 
         </div>
         
-        {(hasPagination) && (
+        {hasPagination && (
           <Box padding='400' borderBlockStartWidth='0165' borderColor='border'>
             <BlockStack inlineAlign='center'>
               <Pagination
-                hasPrevious = {page > 0}
+                hasPrevious = {hasPrev}
                 onPrevious={() => {
-                  setPage((prevPage) => Math.max(prevPage - 1, 0));
+                  // TODO
+                  setPage((prev) => Math.max(0, prev - 1));
                 }}
-                hasNext = {!isLastPage}
+                hasNext = {hasNext}
                 onNext={() => {
-                  setPage((prevPage) => Math.min(prevPage + 1, knownTotalPage-1));
+                  // TODO
+                  setPage((prev) => Math.min(lastPage, prev + 1));
                 }}
               />
             </BlockStack>

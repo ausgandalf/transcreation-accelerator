@@ -1,9 +1,14 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
+import { Translations } from "app/models/Translations";
+import { resourceTypePath } from "app/api/data";
+import { getIDBySection } from "app/components/Functions";
 
 import { 
   getProducts, 
+  getProductsWithOptions,
   getProduct, 
+  getProductInfo,
   getCollections,
   getTranslationsByIds, 
   setTranslations, 
@@ -62,12 +67,18 @@ export async function action({ request, params }) {
       } catch (e) {}
     }
 
+    const idTypes = {};
+
     if (product) {
       let ids = [ product.id ];
+      idTypes[product.id] = 'PRODUCT';
+      
       product.options.map((x, i) => {
         ids.push(x.id);
+        idTypes[x.id] = 'PRODUCT_OPTION';
         x.optionValues.map((y, j) => {
           ids.push(y.id);
+          idTypes[y.id] = 'PRODUCT_OPTION_VALUE';
         })
       })
     
@@ -79,6 +90,7 @@ export async function action({ request, params }) {
           endLoop = true;
         } catch (e) {}
       }
+      result['idTypes'] = idTypes;
     }
 
     result['product'] = product; // Put product info
@@ -247,6 +259,98 @@ export async function action({ request, params }) {
       } catch (e) {}
     }
 
+  } else if (data.action == 'trans_find') {
+
+    const resourceTypes = data.types ? data.types.split('|') : [];
+    const q = data.q;
+    const page = parseInt(data.page);
+    const perPage = parseInt(data.perPage);
+    const {total, rows} = await Translations.find(q, resourceTypes, isNaN(page) ? 0 : page, isNaN(perPage) ? 10 : perPage);
+
+    if (!total) total = 0;
+    if (!rows) rows = [];
+    // console.log('trans-find:', total, rows);
+
+    const refined = {};
+    rows.map((x, i) => {
+
+      let v = x.translation;
+      const pos = v.indexOf(q);
+      const minPos = Math.max(0, pos - 45);
+      const maxPos = Math.min(v.length, pos + 45 + q.length);
+      v = v.substring(minPos, maxPos);
+      v = v.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+      v = v.replaceAll(q, `<em>${q}</em>`);
+
+      const objId = getIDBySection(x.parentId ? x.parentId : x.resourceId, 'product');
+      // console.log(x);
+      // console.log(objId);
+      if (!(objId in refined)) {
+        refined[objId] = {
+          info: {},
+          items: []
+        };
+      }
+      refined[objId].items.push({...x, parentId:objId, highlight:v, path:resourceTypePath[x.resourceType]});
+    });
+
+    // console.log('trans-refined:', refined);
+
+    for (let key in refined) {
+      let endLoop = false;
+      let product = null;
+      while (!endLoop) {
+        try {
+          product = await getProductInfo(admin.graphql, key);
+          endLoop = true;
+        } catch (e) {}
+      }
+
+      refined[key].info = product;
+    }
+    // console.log('product-info-filled-up:', refined);
+    result['result'] = {total, result: refined};
+
+  } else if (data.action == 'trans_fill_parents') {
+    // Load product list
+    let endLoop = false;
+    while (!endLoop) {
+      try {
+        result = await getProductsWithOptions(admin.graphql, data.cursor, data.perPage);
+        endLoop = true;
+      } catch (e) {}
+    }
+    // console.log('products fetched: ', result);
+
+    if (result.products) {
+      result.products.nodes.map((x, i) => {
+        const productId = x.id.split('/').pop();
+        x.options.map((y, j) => {
+          const optionId = y.id.split('/').pop();
+          Translations.fillParent(productId, {
+            shop,
+            resourceId: optionId
+          });
+          y.optionValues.map((z, k) => {
+            const optionValueId = z.id.split('/').pop();
+            Translations.fillParent(productId, {
+              shop,
+              resourceId: optionValueId
+            });
+          })
+        })
+      })
+      result.pageInfo = {
+        cursor: result.products.pageInfo.endCursor,
+        hasNext: result.products.pageInfo.hasNextPage,
+      }
+    } else {
+      result.pageInfo = {
+        cursor: '',
+        hasNext: false,
+      }
+    }
+    
   }
 
   return Response.json({ ...result, input:data, action:data.action });

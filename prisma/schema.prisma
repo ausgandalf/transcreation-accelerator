@@ -30,3 +30,20 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 }
+
+model Translations {
+  id            Int   @id @default(autoincrement())
+  shop          String
+  resourceType  String
+  resourceId    String
+  parentId      String?
+  field         String
+  locale        String
+  market        String
+  content       String
+  translation   String
+  updatedAt     DateTime?
+  status        String?
+
+  @@unique([shop, resourceId, field, locale, market])
+}

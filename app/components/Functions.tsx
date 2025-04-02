@@ -154,3 +154,7 @@ export function getIDBySection(id?:string|null, section?:string) {
   }
   return idv;
 }
+
+export function extractId(id:string) {
+  return id.split('/').pop();
+}

@@ -100,6 +100,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
+  let currentHighlight = '';
+  if (url.searchParams.get("highlight")) {
+    currentHighlight = url.searchParams.get("highlight");
+  }
+
   return {
     apiKey: process.env.SHOPIFY_API_KEY || "",
     translation: polarisTranslations, 
@@ -107,6 +112,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     markets,
     currentMarket,
     currentLocale,
+    currentHighlight,
     defaultLocale,
     init: true, 
     path: url.pathname, 
@@ -149,7 +155,7 @@ export default function App() {
   const navigate = useNavigate();
   const submit = useSubmit();
 
-  const { apiKey, locales, markets, currentMarket, currentLocale, defaultLocale, init, path, translation, shop } = useLoaderData<typeof loader>();
+  const { apiKey, locales, markets, currentMarket, currentLocale, currentHighlight, defaultLocale, init, path, translation, shop } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
 
   const [isLoaded, setIsLoaded] = useState(false);
@@ -293,7 +299,9 @@ export default function App() {
           </InlineStack>,
         locale: currentLocale,
         market: currentMarket,
+        highlight: currentHighlight,
         locales,
+        markets,
         shop: shopURL,
       }} />
 

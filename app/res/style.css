@@ -196,3 +196,23 @@
 .cell--target:hover .label--updatedAt {
   opacity: 1;
 }
+
+.item { padding: 10px 20px; border-bottom: dashed 1px var(--p-color-bg-fill-secondary-hover);}
+.item:last-child { border-bottom: none !important;}
+.item-blocks:first-child .item:first-child {border-top: none !important;}
+.item em {
+  font-style: normal;
+  font-weight: bold;
+  color: var(--p-color-bg-fill-emphasis-hover);
+}
+.item.selected {
+  background: var(--p-color-bg-surface-brand-selected);
+}
+.item--section {
+  background: var(--p-color-bg-fill-transparent);
+  border-bottom: solid 1px var(--p-color-bg-surface-brand-selected);
+  border-top: solid 1px var(--p-color-bg-surface-brand-selected);
+}
+.highlighted {
+  background: var(--p-color-bg-fill-magic-secondary-active) !important;
+}

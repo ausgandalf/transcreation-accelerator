@@ -91,3 +91,9 @@ export const transKeys = {
     type: 'text',
   }
 }
+
+export const resourceTypePath = {
+  'PRODUCT': 'product',
+  'PRODUCT_OPTION': 'product',
+  'PRODUCT_OPTION_VALUE': 'product',
+}

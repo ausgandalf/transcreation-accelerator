@@ -28,16 +28,18 @@ import {
 import {
   ImageIcon,
   ExternalIcon,
+  SearchIcon,
 } from '@shopify/polaris-icons';
 
 import { authenticate, login } from "../../shopify.server";
 
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { getRedirect, makeReadable, getReadableDate, getIDBySection, getFullscreen, enterFullscreen, exitFullscreen, makeFullscreen, sleep } from 'app/components/Functions';
+import { extractId, getRedirect, makeReadable, getReadableDate, getIDBySection, getFullscreen, enterFullscreen, exitFullscreen, makeFullscreen, sleep } from 'app/components/Functions';
 import { getProductInfo } from 'app/api/App';
 import { thStyle, cellStyle, sourceCellStyle, xtraCellStyle, targetCellStyle, textareaStyle } from "app/res/style";
 import { SkeletonLocalize, SkeletonTranslation, SkeletonTranslationContent } from '../../components/Skeletons';
 import { ResourcePanel } from './list';
+import { SearchPanel } from './search';
 
 import { sections, transKeys } from 'app/api/data';
 import { Editor } from 'app/components/Editor';
@@ -133,6 +135,9 @@ export default function App() {
   const [isTranslationLoading, setIsTranslationLoading] = useState(false);
   const [isTranslationLoaded, setIsTranslationLoaded] = useState(false);
 
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [searchKey, setSearchKey] = useState('');
+
   const [searchParams, setSearchParams] = useSearchParams();
   
   // const nav = useNavigation();
@@ -152,6 +157,13 @@ export default function App() {
   const context = useOutletContext();
   const [currentLocale, setCurrentLocale] = useState(context.locale);
   const [currentMarket, setCurrentMarket] = useState(context.market);
+  const [currentHighlight, setCurrentHighlight] = useState(context.highlight);
+
+  useEffect(() => {
+    setCurrentLocale(context.locale);
+    setCurrentMarket(context.market);
+    setCurrentHighlight(context.highlight);
+  }, [context.locale, context.market, context.highlight])
 
   useEffect(() => {
     setCurrentLocale(context.locale);
@@ -201,6 +213,7 @@ export default function App() {
   
   const [selectedResource, setSelectedResource] = useState(selected);
 
+  const [transIdTypes, setTransIdTypes] = useState({});
   const [transData, setTransData] = useState({});
   const [transDataObject, setTransDataObject] = useState({});
   const [productInfoIds, setProductInfoIds] = useState({});
@@ -277,6 +290,7 @@ export default function App() {
       }
       translations.push({
         id,
+        type: transIdTypes[id] ? transIdTypes[id] : '',
         data: trans
       });
     }
@@ -334,6 +348,7 @@ export default function App() {
 
           setTransData(translatableData);
           setTransDataObject(translatableDataObj);
+          setTransIdTypes(fetcher.data.idTypes);
 
           formStateDispatch({type: 'init', translations: transData});
           setCleanFormState(transData);
@@ -389,14 +404,39 @@ export default function App() {
     }
   }, [init]);
 
-  const selectResource = (item) => {
-    setSelectedResource(item);
-    setIsTranslationLoaded(false);
+  const isGonnaReload = (searchParamValue = null) => {
+    if (!searchParamValue) return false;
+    const keys = ['id', 'market', 'shopLocale'];
+    let gonnaReload = false;
+    keys.some((x) => {
+      if (searchParamValue.get(x) != searchParams.get(x)) {
+        gonnaReload = true;
+        return true;
+      }
+    })
 
-    setSearchParams((prev) => {
-      prev.set("id", item.id.split('/').pop());
-      return prev;
-    });
+    return gonnaReload;
+  }
+
+  const selectResource = (item, searchParamValue = null) => {
+    console.log(item);
+    const itemId = item.id.split('/').pop();
+
+    setSelectedResource(item);
+
+    if ((searchParams.get("id") != itemId) || isGonnaReload(searchParamValue)) {
+      setIsTranslationLoaded(false);
+    }
+
+    if (searchParamValue) {
+      if (searchParams.get("id") != itemId) searchParamValue.set("id", itemId);
+      setSearchParams(searchParamValue);
+    } else {
+      setSearchParams((prev) => {
+        prev.set("id", itemId);
+        return prev;
+      });
+    }
   }
 
   const loadResource = (item) => {
@@ -508,7 +548,27 @@ export default function App() {
                 }}
               >
                 <div style={{marginLeft: '1rem', flexGrow: 1}}>
-                  {context.selectors}
+                  <InlineStack gap="100" align='center' blockAlign='center' wrap={false}>
+                    {!isSearchVisible && context.selectors}
+                    {isSearchVisible && (
+                      <div style={{flex: '0 0 calc(100% - 200px)'}}>
+                        <TextField
+                          label="Search by keyword"
+                          labelHidden
+                          focused
+                          placeholder='Search by keyword'
+                          minLength={100}
+                          value={searchKey}
+                          onChange={(value) => setSearchKey(value)}
+                          autoComplete='off'
+                        />
+                      </div>
+                    )}
+                    <Box>
+                      {!isSearchVisible && (<Button icon={SearchIcon} onClick={() => setIsSearchVisible(true)} />)}
+                      {isSearchVisible && (<Button onClick={() => setIsSearchVisible(false)}>Cancel</Button>)}
+                    </Box>
+                  </InlineStack>
                 </div>
                 <ButtonGroup>
                   <Button onClick={() => {
@@ -537,7 +597,10 @@ export default function App() {
           <div className='fullscreenLayout withTopBar'>
             <div className='layout layout--translate'>
               <div className='layout__section layout__section--resource'>
-                <ResourcePanel onSelect={selectResource} selected={selected} section={section} />
+
+                <ResourcePanel onSelect={selectResource} selected={selected} section={section} visible={!isSearchVisible} />
+                <SearchPanel q={searchKey} onSelect={selectResource} markets={context.markets}  visible={isSearchVisible} />
+
               </div>
               
               <div className='layout__section layout__section--translate'>
@@ -612,7 +675,7 @@ export default function App() {
                                   <tbody>
                                     {transData[productInfoIds.id].map((x, i) => (
                                       <tr key={'transmain-tr--' + i}>
-                                        <td width='20%' style={cellStyle}>
+                                        <td width='20%' style={cellStyle} className={currentHighlight == x.key ? 'highlighted' : ''}>
                                           <BlockStack gap='100'>
                                             <Text as='p' variant='headingSm'>{getKeyLabel(x.key)}</Text>
                                             <Text as='p' tone='subdued' variant='bodySm'>Source: {getLanguageLabel(x.locale)}</Text>
@@ -646,7 +709,7 @@ export default function App() {
                                   {productInfoIds.options.map((x, i) => (
                                     <tbody key={'transopt-tbody--' + i}>
                                       <tr>
-                                        <td width='20%' style={cellStyle}>
+                                        <td width='20%' style={cellStyle} className={extractId(x.id) == currentHighlight ? 'highlighted' : ''}>
                                           <BlockStack gap='100'>
                                             <Text as='p' variant='headingSm'>Option name</Text>
                                             {/* <Text as='p' tone='subdued' variant='bodySm'>{x.name}</Text> */}
@@ -664,7 +727,9 @@ export default function App() {
                                       {x.optionValues.map((ov,j) => (
                                         <tr key={'transopt-tr-ov--' + i + '-' + j}>
                                           {(j==0) && (
-                                            <td width='20%' style={{...cellStyle, gridRow: 'span ' + x.optionValues.length, }} rowSpan={x.optionValues.length}>
+                                            <td width='20%' 
+                                              style={{...cellStyle, gridRow: 'span ' + x.optionValues.length, }} rowSpan={x.optionValues.length}
+                                            >
                                               <BlockStack gap='100'>
                                                 <Text as='p' variant='headingSm'>{x.name}</Text>
                                                 <Text as='p' tone='subdued' variant='bodySm'>Option values</Text>
@@ -673,7 +738,9 @@ export default function App() {
                                             </td>
                                           )}
 
-                                          <td width='40%' className='cell cell--source' style={{...cellStyle, ...sourceCellStyle, ...xtraCellStyle(x.type)}}>
+                                          <td width='40%' 
+                                            className={'cell cell--source ' + (extractId(ov.id) == currentHighlight ? 'highlighted' : '')}
+                                            style={{...cellStyle, ...sourceCellStyle, ...xtraCellStyle(x.type)}}>
                                             {renderTransSource(ov.type, transDataObject[ov.id]['name'].value)}
                                           </td>
                                           <td width='40%' className='cell cell--target' style={{...cellStyle, ...targetCellStyle}}>
