@@ -20,7 +20,7 @@ export const Sync = {
   
   getTranslations: async (shop:string) => {
     const rows = await db.syncTranslations.findMany({
-      take: 10,
+      take: 1,
       where: {
         shop,
         status : 0,
@@ -41,6 +41,8 @@ export const Sync = {
 
   modifyTranslations: async (row: SyncTranslationsRow) => {
     const {shop, resourceType, resourceId, status} = row;
+    if ('id' in row) delete row.id;
+
     const where = {
       shop_resourceType_resourceId: {
         shop,

@@ -144,6 +144,7 @@ export const Translations = {
     })
   },
   insertOrUpdate: async (row: TranslationRow) => {
+    
     const where = {
       shop_resourceId_field_locale_market: {
         shop: row.shop,

@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "12967b2878cb1061e5ea705aaaab9f68"
-application_url = "https://tracking-fires-charming-different.trycloudflare.com"
+application_url = "https://carey-crops-hiring-pages.trycloudflare.com"
 embedded = true
 name = "AI Transcreation Andrei"
 handle = "ai-transcreation-andrei"
@@ -20,9 +20,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://tracking-fires-charming-different.trycloudflare.com/auth/callback",
-  "https://tracking-fires-charming-different.trycloudflare.com/auth/shopify/callback",
-  "https://tracking-fires-charming-different.trycloudflare.com/api/auth/callback"
+  "https://carey-crops-hiring-pages.trycloudflare.com/auth/callback",
+  "https://carey-crops-hiring-pages.trycloudflare.com/auth/shopify/callback",
+  "https://carey-crops-hiring-pages.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

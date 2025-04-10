@@ -3,6 +3,7 @@ import { useFetcher } from "@remix-run/react";
 
 import {
   Button,
+  Tooltip,
 } from "@shopify/polaris";
 
 interface SyncRunnerProps {
@@ -88,10 +89,13 @@ export const SyncRunner = (props:SyncRunnerProps) => {
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
 
+  const buttonTooltip = () => (syncHasNext || isSyncPoolLeft) ? `Syncing the search index...` : `Not seeing some translations in your search results? Give the search index a quick re-sync!`;
   return (
     <div>
       {asButton && (
-        <Button loading={syncHasNext || isSyncPoolLeft} onClick={syncPoolingRestart}>Re-sync for Search</Button>
+        <Tooltip active={syncHasNext || isSyncPoolLeft} content={buttonTooltip()}>
+          <Button loading={syncHasNext || isSyncPoolLeft} onClick={syncPoolingRestart}>Re-sync for Search</Button>
+        </Tooltip>
       )}
     </div>
   );

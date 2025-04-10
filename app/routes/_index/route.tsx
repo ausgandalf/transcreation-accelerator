@@ -49,7 +49,8 @@ export const links = () => [
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const { admin, session } = await authenticate.admin(request);
-  
+  const { shop } = session;
+
   let locales = [];
   let endLoop = false;
   while (!endLoop) {
@@ -88,7 +89,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     init: true, 
     path: '/', 
     translation: polarisTranslations, 
-    shop: url.searchParams.get("shop")
+    shop,
   };
 };
 
@@ -190,8 +191,9 @@ export default function App() {
           secondaryActions={
             <InlineStack gap="100">
               <SyncRunner asButton />
+
               <Button 
-                disabled={shop && (shop != '') ? false : true} 
+                // disabled={shop && (shop != '') ? false : true} 
                 onClick={() => {
                   getRedirect(shopify).dispatch(
                     Redirect.Action.REMOTE,

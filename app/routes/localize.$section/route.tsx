@@ -40,7 +40,7 @@ import { extractId, getRedirect, makeReadable, getReadableDate, getIDBySection, 
 import { getProductInfo } from 'app/api/GraphQL';
 import { thStyle, cellStyle, sourceCellStyle, xtraCellStyle, targetCellStyle, textareaStyle } from "app/res/style";
 import { SkeletonLocalize, SkeletonTranslation, SkeletonTranslationContent } from '../../components/Skeletons';
-import { ResourcePanel } from './list';
+import { ResourcePanel as ProductsPanel } from './products';
 import { SearchPanel } from './search';
 
 
@@ -576,15 +576,21 @@ export default function App() {
                 </div>
                 <ButtonGroup>
                   <SyncRunner asButton />
-                  <Button onClick={() => {
-                    getRedirect(shopify).dispatch(
-                      Redirect.Action.REMOTE,
-                      {
-                        url: context.shop,
-                        newContext: true,
-                      }
-                    )
-                  }}>View Store</Button>
+
+                  <Button 
+                    onClick={() => {
+                      getRedirect(shopify).dispatch(
+                        Redirect.Action.REMOTE,
+                        {
+                          url: context.shop,
+                          newContext: true,
+                        }
+                      )
+                    }}
+                  >
+                    View Store
+                  </Button>
+
                   <Button 
                     variant="primary" 
                     onClick={() => {
@@ -603,7 +609,7 @@ export default function App() {
             <div className='layout layout--translate'>
               <div className='layout__section layout__section--resource'>
 
-                <ResourcePanel onSelect={selectResource} selected={selected} section={section} visible={!isSearchVisible} />
+                <ProductsPanel onSelect={selectResource} selected={selected} section={section} visible={!isSearchVisible} />
                 <SearchPanel q={searchKey} onSelect={selectResource} locales={context.locales} markets={context.markets}  visible={isSearchVisible} />
 
               </div>

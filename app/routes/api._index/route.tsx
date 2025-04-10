@@ -172,15 +172,13 @@ export async function action({ request, params }) {
       }
     }
 
-    dataset.map((row, i) => {
-      // Clear translations
-      // console.log('updating...', row);
+    for (let i=0; i<dataset.length; i++) {
       try {
-        Translations.insertOrUpdate(row);
+        await Translations.insertOrUpdate(dataset[i]);
       } catch(e) {
         // console.log(e);
       }
-    })
+    }
 
     result['results'] = results;
 

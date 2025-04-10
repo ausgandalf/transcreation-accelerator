@@ -19,7 +19,8 @@ datasource db {
 }
 
 model Session {
-  id            String    @id @map("_id") @db.ObjectId
+  mongoId       String    @id @default(auto()) @map("_id") @db.ObjectId
+  id            String    @unique
   shop          String
   state         String
   isOnline      Boolean   @default(false)
