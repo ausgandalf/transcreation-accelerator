@@ -39,10 +39,10 @@ export const links = () => [
 ];
 
 import { SelectPop } from 'app/components/SelectPop';
-import { MarketsPop } from 'app/components/MarkertsPop';
+import { MarketsPop } from 'app/components/MarketsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
 import { isSaveBarOpen, getRedirect, getFullscreen, enterFullscreen, exitFullscreen } from 'app/components/Functions';
-import { getShopLocales, getShopMarkets } from 'app/api/App';
+import { getShopLocales, getShopMarkets } from 'app/api/GraphQL';
 
 import { sections } from 'app/api/data';
 
@@ -290,7 +290,6 @@ export default function App() {
   return (
     <AppProvider i18n={translation} isEmbeddedApp apiKey={apiKey}>
       {isLoading && (<LoadingScreen />)}
-
       <Outlet context={{
         selectors: 
           <InlineStack gap='100' align='center'>

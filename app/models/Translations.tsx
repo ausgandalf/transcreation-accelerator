@@ -1,6 +1,7 @@
+import { findRenderedComponentWithType } from "react-dom/test-utils";
 import db from "../db.server";
 
-interface translationsCondition {
+export interface TranslationsCondition {
   shop: string,
   resourceId: string,
   field?: string,
@@ -8,7 +9,21 @@ interface translationsCondition {
   market?: string,
 }
 
-const defaultCondition: translationsCondition = {
+export interface TranslationRow {
+  shop: string,
+  resourceType: string,
+  resourceId: string,
+  parentId: string,
+  field: string,
+  locale: string,
+  market: string,
+  content?: string,
+  translation: string,
+  updatedAt?: string,
+  status?: string,
+}
+
+const defaultCondition: TranslationsCondition = {
   shop: '',
   resourceId: '',
   field: '',
@@ -17,7 +32,7 @@ const defaultCondition: translationsCondition = {
 }
 
 export const Translations = {
-  getByResourceId : async (condition: translationsCondition) => {
+  getByResourceId : async (condition: TranslationsCondition) => {
     condition = {...defaultCondition, ...condition};
     const {shop, resourceId, field, locale, market} = condition;
 
@@ -45,7 +60,7 @@ export const Translations = {
     return row;
   },
 
-  get : async (condition: translationsCondition) => {
+  get : async (condition: TranslationsCondition) => {
     condition = {...defaultCondition, ...condition};
     const {shop, resourceId, field, locale, market} = condition;
 
@@ -60,7 +75,7 @@ export const Translations = {
     return row;
   },
 
-  find: async (key: string, resourceTypes: [] = [], page = 0, perPage = 10) => {
+  find: async (key: string, resourceTypes: [] = [], locales: [] = [], page = 0, perPage = 10) => {
     const where = { 
       translation: {
         contains: key,
@@ -71,6 +86,12 @@ export const Translations = {
         in: resourceTypes
       };
     }
+    if (locales && locales.length > 0) {
+      where['locale'] = {
+        in: locales
+      };
+    }
+    // console.log(where);
 
     const total = await db.translations.count({
       where
@@ -84,12 +105,10 @@ export const Translations = {
       // },
     });
   
-    if (rows.length === 0) return [];
-  
     return {total, rows};
   },
 
-  fillParent: async (parentId: string, condition: translationsCondition) => {
+  fillParent: async (parentId: string, condition: TranslationsCondition) => {
     condition = {...defaultCondition, ...condition};
     const {shop, resourceId} = condition;
 
@@ -102,5 +121,52 @@ export const Translations = {
         parentId
       },
     })
+  },
+  clearTranslations: async (shop: string, resourceId:string) => {
+    const translations = await db.translations.updateMany({
+      where: {
+        shop,
+        resourceId
+      },
+      data: {
+        translation: ''
+      },
+    });
+
+    const subTranslations = await db.translations.updateMany({
+      where: {
+        shop,
+        parentId: resourceId
+      },
+      data: {
+        translation: ''
+      },
+    })
+  },
+  insertOrUpdate: async (row: TranslationRow) => {
+    const where = {
+      shop_resourceId_field_locale_market: {
+        shop: row.shop,
+        resourceId: row.resourceId,
+        field: row.field,
+        locale: row.locale,
+        market: row.market,     
+      }
+    }
+    if (!row.updatedAt) delete row.updatedAt; // Remove updatedAt to make it NULL if not set.
+    
+    let newRow:any = false;
+    try {
+      newRow = await db.translations.upsert({
+        where,
+        update: row,
+        create: row,
+      });  
+    } catch (e) {
+      console.log(e);
+      throw e;
+    }
+    
+    return newRow;
   }
 }

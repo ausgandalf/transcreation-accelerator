@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useFetcher, useSearchParams } from "@remix-run/react";
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useFetcher, useParams, useSearchParams } from "@remix-run/react";
 
 import {
   BlockStack,
@@ -10,6 +10,8 @@ import {
   Pagination,
   Divider,
   Thumbnail,
+  Tag,
+  EmptyState,
 } from "@shopify/polaris";
 import {
   FilterIcon,
@@ -17,9 +19,10 @@ import {
 } from '@shopify/polaris-icons';
 
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { isSaveBarOpen, extractId } from 'app/components/Functions';
+import { isSaveBarOpen, extractId, makeReadable } from 'app/components/Functions';
 import { CheckListPop } from 'app/components/CheckListPop';
-
+import { CheckListSectionsPop } from 'app/components/CheckListSectionsPop';
+import { sections as translateSections, getResourceTypesPerSection } from 'app/api/data';
 import { SkeletonResources } from '../../components/Skeletons';
 import { search } from '@shopify/app-bridge/actions/Picker';
 
@@ -28,6 +31,7 @@ interface SearchPanelProps {
   visible: boolean,
   section?: string,
   markets: [],
+  locales: [],
   onSelect: Function,
 }
 
@@ -36,30 +40,39 @@ const defaultProps: SearchPanelProps = {
   visible: true,
   section: 'product',
   markets: [],
+  locales: [],
   onSelect: () => {}
 }
 
 export const SearchPanel = (props:SearchPanelProps) => {
   
   props = {...defaultProps, ...props}
-  const { q, visible, section, onSelect, markets } = props;
+  const { q, visible, section, onSelect, markets, locales } = props;
   
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
   
+  const resourceTypesPerSection = getResourceTypesPerSection();
+
   const fetcher = useFetcher();
   
   const [isResourceLoading, setIsResourceLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-
-
+  const params = useParams();
 
   const perPage = 10; // Let's keep this fixed for now
   const [keyword, setKeyword] = useState(q);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
+  const [fetchedTotal, setFetchedTotal] = useState(0);
 
-  const lastPage = Math.floor(total / perPage);
+  const [filters, setFilters] = useState({
+    status: [''],
+    locale: [searchParams.get('shopLocale')],
+    section: [params.section],
+  });
+
+  const lastPage = Math.floor((total - 1) / perPage);
   const hasPagination = (lastPage > 0);
   const hasNext = (page < lastPage);
   const hasPrev = (page > 0);
@@ -69,7 +82,7 @@ export const SearchPanel = (props:SearchPanelProps) => {
   const [selectedResource, setSelectedResource] = useState({});
 
   const selectResource = (item, parentItem) => {
-    console.log(item);
+    // console.log(item);
     if (selectedResource.id == item.id) return;
 
     const searchParamValues = ((prev) => {
@@ -113,7 +126,7 @@ export const SearchPanel = (props:SearchPanelProps) => {
 
   useEffect(() => {
     find();
-  }, [keyword, page]);
+  }, [keyword, page, filters]);
 
 
   useEffect(() => {
@@ -122,10 +135,10 @@ export const SearchPanel = (props:SearchPanelProps) => {
     } else {
       if (fetcher.data.action == 'trans_find') {
         
-        const {total, result} = fetcher.data.result;
+        const {total, found, result} = fetcher.data.result;
         setTotal(total);
-
-        console.log(result);
+        setFetchedTotal(found);
+        // console.log(result);
         
         setResources(structuredClone(result));
         setIsResourceLoading(false);
@@ -135,26 +148,31 @@ export const SearchPanel = (props:SearchPanelProps) => {
   }, [fetcher.data]);
 
   const find = () => {
-    console.log(keyword, page);
-    if (keyword.length < 2) return;
+    // console.log(keyword, page);
+    if (keyword.length < 2) {
+      setResources([]);
+      return;
+    }
     
     setIsResourceLoading(true);
     const data = {
       q: keyword,
       perPage,
       page,
+      status: filters.status[0],
+      types: filters.section.reduce((result, item) => {
+        const sections = resourceTypesPerSection[item];
+        if (sections) {
+          result = result + (result ? '|' : '') + resourceTypesPerSection[item].join('|');  
+        }
+        return result;
+      }, ''),
+      locales: filters.locale.reduce((result, item) => result + (result ? '|' : '') + item, ''),
       action: 'trans_find',
     };
     
     fetcher.submit(data, { action: "/api", method: "post" });
   };
-
-  const filters = [
-    {value: '', label: 'All'},
-    {value: 'ACTIVE', label: 'Active'},
-    {value: 'DRAFT', label: 'Draft'},
-    {value: 'ARCHIVED', label: 'Archived'},
-  ]
 
   const renderItem = (item:{}, parentItem:{}) => {
     return (
@@ -194,44 +212,130 @@ export const SearchPanel = (props:SearchPanelProps) => {
       </a>
     )
   }
+
+  const sections = [
+    // {
+    //   title: 'Translation status',
+    //   key: 'status',
+    //   multiple: false,
+    //   choices: [
+    //     {label: 'All', value: ''},
+    //     {label: 'Translated', value: 'translated'},
+    //     {label: 'Not translated', value: 'not-translated'},
+    //   ]
+    // },
+    {
+      title: 'Language',
+      key: 'locale',
+      multiple: true,
+      choices: locales.map((locale, i) => ({label: locale.name, value:locale.locale})),
+      hasClear: true,
+    },
+    {
+      title: 'Resource type',
+      key: 'section',
+      multiple: true,
+      choices: translateSections.reduce((result, section) => {
+        const subItems = section.items.map((item, j) => ({label: item.content, value:item.url.split('/').pop()}));
+        return [...result, ...subItems]
+      }, []).sort(function(a, b) {
+        if (a.label < b.label) return -1;
+        if (a.label > b.label) return 1;
+        return 0;
+      }),
+      hasClear: true,
+    }
+  ];
+
+  const filterLabel = (key:string, value:string) => {
+    
+    let label = makeReadable(value);
+
+    sections.some((section) => {
+      if (section.key == key) {
+        section.choices.some((item) => {
+          if (item.value == value) {
+            label = item.label;
+            return true;
+          }
+        })
+        return true;
+      }
+    })
+
+    return label;
+  };
   
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
 
   return (
-    <div className='panel panel--resource' style={{background:'#fff',height:'100%', position:'relative', display: visible ? 'block':'none'}}>
+    <div className='panel panel--resource' 
+      style={{
+        background:'#fff',
+        height:'100%', 
+        position:'relative', 
+        gridTemplateColumns: '1fr',
+        gridTemplateRows: 'auto auto 1fr auto',
+        display: visible ? 'grid':'none'
+      }}>
         {isResourceLoading && (<LoadingScreen position='absolute' />)}
         <Box padding='200'>
-          <InlineStack align='space-between' blockAlign='center'>
-            <Text as='p'>Showing # of # Items</Text>
-            <CheckListPop 
-              label={<Button icon={FilterIcon} accessibilityLabel='Filter' />} 
-              multiple={false} 
-              options={filters} 
-              checked={filters.length > 0 ? [filters[0].value] : []}
-              onChange={(selected: string) => {
-                // TODO
-                document.body.classList.toggle('resource-panel--open', false);
-                setFilterStatus(selected[0]);
+          <BlockStack>
+            <InlineStack align='space-between' blockAlign='center'>
+              <Text as='p'>Showing {fetchedTotal} of {total} Items</Text>
+              <CheckListSectionsPop 
+                label={<Button icon={FilterIcon} accessibilityLabel='Filter' />} 
+                checked = {filters}
+                sections={sections} 
+                onChange={(selected: string[], section:string) => {
+                  // TODO
+                  document.body.classList.toggle('resource-panel--open', false);
 
-                // Initialize
-                setPage(0);
-                setCursor('');
-                setResources([]);
+                  const newSelected = {...filters, ...{[section]:selected}};
+                  setFilters(newSelected);
 
-                // console.log('refreshing...', {cursor: '', perPage, status: selected[0]});
-                loadProducts({cursor: '', perPage, status: selected[0]});
-              }} 
-            />
-          </InlineStack>
+                  // Initialize
+                  setPage(0);
+                  
+                  // setResources([]);
+
+                  // console.log('refreshing...', {cursor: '', perPage, status: selected[0]});
+                  // loadProducts({cursor: '', perPage, status: selected[0]});
+                }} 
+              />
+            </InlineStack>
+            <Box>
+              <InlineStack gap='100'>
+                {Object.keys(filters).map((key, i) => 
+                  filters[key].filter((filter) => (filter != '')).map((filter, j) => (<Tag onRemove={() => {
+                    // TODO
+                    const newFilters = filters[key].filter((item) => (item != filter));
+                    setFilters((prevFilters) => ({...prevFilters, [key]:newFilters}));
+                  }}>{filterLabel(key, filter)}</Tag>))
+                )}
+              </InlineStack>
+            </Box>
+          </BlockStack>
         </Box>
 
         <Divider/>
 
         <div style={{
-          height: hasPagination ? 'calc(100% - 110px' : 'calc(100% - 50px',
+          // height: hasPagination ? 'calc(100% - 110px' : 'calc(100% - 50px',
           overflow:'auto',
         }}>
+
+          {/* { isResourceLoading && (<SkeletonResources />) } */}
+
+          {(resources.length < 1) && (
+            <EmptyState
+              heading="No translations found."
+              image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+            >
+              <p>Please try new search.</p>
+            </EmptyState>
+          )}
 
           {Object.keys(resources).map((key, index) => {
             const parentItem = resources[key].info;
@@ -254,24 +358,26 @@ export const SearchPanel = (props:SearchPanelProps) => {
 
         </div>
         
-        {hasPagination && (
-          <Box padding='400' borderBlockStartWidth='0165' borderColor='border'>
-            <BlockStack inlineAlign='center'>
-              <Pagination
-                hasPrevious = {hasPrev}
-                onPrevious={() => {
-                  // TODO
-                  setPage((prev) => Math.max(0, prev - 1));
-                }}
-                hasNext = {hasNext}
-                onNext={() => {
-                  // TODO
-                  setPage((prev) => Math.min(lastPage, prev + 1));
-                }}
-              />
-            </BlockStack>
-          </Box>
-        )}
+        <Box padding='400' borderBlockStartWidth={hasPagination ? '0165' : '0'} borderColor='border'>
+          {hasPagination && (
+            <Box>
+              <BlockStack inlineAlign='center'>
+                <Pagination
+                  hasPrevious = {hasPrev}
+                  onPrevious={() => {
+                    // TODO
+                    setPage((prev) => Math.max(0, prev - 1));
+                  }}
+                  hasNext = {hasNext}
+                  onNext={() => {
+                    // TODO
+                    setPage((prev) => Math.min(lastPage, prev + 1));
+                  }}
+                />
+              </BlockStack>
+            </Box>
+          )}
+        </Box>
       
     </div>
   );

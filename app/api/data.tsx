@@ -97,3 +97,13 @@ export const resourceTypePath = {
   'PRODUCT_OPTION': 'product',
   'PRODUCT_OPTION_VALUE': 'product',
 }
+
+export const getResourceTypesPerSection = () => {
+  const types = {};
+  for (let key in resourceTypePath) {
+    const section = resourceTypePath[key];
+    if (!types[section]) types[section] = [];
+    types[section].push(key);
+  }
+  return types;
+}

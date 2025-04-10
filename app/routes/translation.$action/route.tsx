@@ -33,6 +33,8 @@ import {
 import { authenticate, login } from "../../shopify.server";
 
 import { FillParents } from './fill_parents';
+import { SyncRunner } from '../../components/SyncRunner';
+
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
@@ -60,6 +62,10 @@ export default function App() {
         <Box padding="400">
           {(action == 'fill-parent') && (
             <FillParents />
+          )}
+
+          {(action == 'sync') && (
+            <SyncRunner />
           )}
         </Box>
       

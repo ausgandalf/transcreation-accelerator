@@ -8,13 +8,18 @@ generator client {
 // Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+// datasource db {
+//   provider = "sqlite"
+//   url      = "file:dev.sqlite"
+// }
+
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
-  id            String    @id
+  id            String    @id @map("_id") @db.ObjectId
   shop          String
   state         String
   isOnline      Boolean   @default(false)
@@ -32,7 +37,7 @@ model Session {
 }
 
 model Translations {
-  id            Int   @id @default(autoincrement())
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
   shop          String
   resourceType  String
   resourceId    String
@@ -40,10 +45,31 @@ model Translations {
   field         String
   locale        String
   market        String
-  content       String
+  content       String?   @default("")
   translation   String
   updatedAt     DateTime?
   status        String?
 
   @@unique([shop, resourceId, field, locale, market])
+}
+
+
+model SyncTranslations {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  shop          String
+  resourceType  String
+  resourceId    String
+  status        Int?     @default(0)
+
+  @@unique([shop, resourceType, resourceId])
+}
+
+model SyncProcess {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  shop          String
+  resourceType  String
+  cursor        String?       @default("")
+  hasNext       Boolean?      @default(false)
+
+  @@unique([shop, resourceType])
 }

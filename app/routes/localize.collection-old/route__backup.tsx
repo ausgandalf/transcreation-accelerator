@@ -31,10 +31,10 @@ import polarisTranslations from "@shopify/polaris/locales/en.json";
 import { authenticate, login } from "../../shopify.server";
 
 import { SelectPop } from 'app/components/SelectPop';
-import { MarketsPop } from 'app/components/MarkertsPop';
+import { MarketsPop } from 'app/components/MarketsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
 import { getRedirect, getFullscreen } from 'app/components/Functions';
-import { getShopLocales, getShopMarkets } from 'app/api/App';
+import { getShopLocales, getShopMarkets } from 'app/api/GraphQL';
 
 import { Skeleton } from './skeleton';
 import { sections } from 'app/api/data';

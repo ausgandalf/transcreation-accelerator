@@ -32,10 +32,10 @@ import polarisTranslations from "@shopify/polaris/locales/en.json";
 import { authenticate, login } from "../../shopify.server";
 
 import { SelectPop } from 'app/components/SelectPop';
-import { MarketsPop } from 'app/components/MarkertsPop';
+import { MarketsPop } from 'app/components/MarketsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
 import { getRedirect, getFullscreen } from 'app/components/Functions';
-import { getCollections } from 'app/api/App';
+import { getCollections } from 'app/api/GraphQL';
 import { CheckListPop } from 'app/components/CheckListPop';
 
 import { Skeleton } from './skeleton';

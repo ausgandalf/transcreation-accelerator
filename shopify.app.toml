@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a7e12a2610d20e6486de1aa5ea870187"
-application_url = "https://kick-textbooks-bar-worked.trycloudflare.com"
+application_url = "https://journalist-typing-queens-maps.trycloudflare.com"
 embedded = true
 name = "AI Transcreation"
 handle = "ai-transcreation"
@@ -20,9 +20,9 @@ scopes = "read_content,read_customer_events,read_files,write_files,read_legal_po
 
 [auth]
 redirect_urls = [
-  "https://kick-textbooks-bar-worked.trycloudflare.com/auth/callback",
-  "https://kick-textbooks-bar-worked.trycloudflare.com/auth/shopify/callback",
-  "https://kick-textbooks-bar-worked.trycloudflare.com/api/auth/callback"
+  "https://journalist-typing-queens-maps.trycloudflare.com/auth/callback",
+  "https://journalist-typing-queens-maps.trycloudflare.com/auth/shopify/callback",
+  "https://journalist-typing-queens-maps.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

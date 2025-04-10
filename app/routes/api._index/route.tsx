@@ -1,6 +1,8 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
-import { Translations } from "app/models/Translations";
+import { TranslationRow, Translations } from "app/models/Translations";
+import { SyncTranslationsRow, SyncProcessRow, Sync } from "app/models/Sync";
+import { syncProductTranslations } from "app/api/Actions";
 import { resourceTypePath } from "app/api/data";
 import { getIDBySection } from "app/components/Functions";
 
@@ -17,7 +19,8 @@ import {
   getImageUploadEndpoint,
   createImageOnStore,
   getImageURL,
-} from 'app/api/App';
+  getTranslatableIds,
+} from 'app/api/GraphQL';
 
 import { sleep } from "app/components/Functions";
 
@@ -121,18 +124,35 @@ export async function action({ request, params }) {
     // Load Translation data
     const translationsObj = JSON.parse(data.translations);
     let results = [...Array(translationsObj.length)];
+    let dataset:TranslationRow[] = []; // To save into DB for search function
+
     for (let i=0; i<translationsObj.length; i++) {
       results[i] = {}
       let setData = [];
       let deleteKeys = [];
+
       // Prepare set and delete data
       for (let j=0; j< translationsObj[i].data.length; j++) {
+
         if (translationsObj[i].data[j].value == '') {
           deleteKeys.push(translationsObj[i].data[j].key);
         } else {
           translationsObj[i].data[j].locale = data.locale;
           setData.push(translationsObj[i].data[j]);
         }
+
+        dataset.push({
+          shop,
+          resourceType: translationsObj[i].type,
+          resourceId: translationsObj[i].id.split('/').pop(),
+          parentId: data.id.split('/').pop(),
+          field: translationsObj[i].data[j].key,
+          locale: data.locale,
+          market: data.marketLabel,
+          translation: translationsObj[i].data[j].value,
+          updatedAt: new Date().toISOString(),
+        });
+
       }
 
       let endLoop = !(setData.length > 0); // If only we have setData, then try to set translations
@@ -151,7 +171,19 @@ export async function action({ request, params }) {
         } catch (e) {}
       }
     }
+
+    dataset.map((row, i) => {
+      // Clear translations
+      // console.log('updating...', row);
+      try {
+        Translations.insertOrUpdate(row);
+      } catch(e) {
+        // console.log(e);
+      }
+    })
+
     result['results'] = results;
+
   } else if (data.action == 'file_list') {
     // Load collection list
     let endLoop = false;
@@ -262,11 +294,11 @@ export async function action({ request, params }) {
   } else if (data.action == 'trans_find') {
 
     const resourceTypes = data.types ? data.types.split('|') : [];
+    const locales = data.locales ? data.locales.split('|') : [];
     const q = data.q;
     const page = parseInt(data.page);
     const perPage = parseInt(data.perPage);
-    const {total, rows} = await Translations.find(q, resourceTypes, isNaN(page) ? 0 : page, isNaN(perPage) ? 10 : perPage);
-
+    let {total, rows} = await Translations.find(q, resourceTypes, locales, isNaN(page) ? 0 : page, isNaN(perPage) ? 10 : perPage);
     if (!total) total = 0;
     if (!rows) rows = [];
     // console.log('trans-find:', total, rows);
@@ -309,7 +341,7 @@ export async function action({ request, params }) {
       refined[key].info = product;
     }
     // console.log('product-info-filled-up:', refined);
-    result['result'] = {total, result: refined};
+    result['result'] = {total, found: rows.length, result: refined};
 
   } else if (data.action == 'trans_fill_parents') {
     // Load product list
@@ -351,6 +383,84 @@ export async function action({ request, params }) {
       }
     }
     
+  } else if (data.action == 'sync_process') {
+    // Load product list
+    const forceRestart = (data.force == '1');
+
+    let cursor:string|null = '';
+    let hasNext:boolean|null = true;
+
+    if (!forceRestart) {
+      const syncProcessRow = await Sync.getSync({shop, resourceType: 'PRODUCT'});
+      // console.log('Sync row: ', syncProcessRow);
+      cursor = syncProcessRow ? syncProcessRow.cursor : '';
+      hasNext = syncProcessRow ? syncProcessRow.hasNext : true;
+    }
+
+    let ids:any = false;
+    let endLoop = hasNext ? 0 : 10;
+    while (endLoop < 10) {
+      try {
+        endLoop ++;
+        ids = await getTranslatableIds(admin.graphql, 'PRODUCT', cursor);
+        endLoop = 10;
+      } catch (e) {}
+    }
+    
+    if ( ids ) {
+      if ( ids.nodes ) {
+        // Insert into DB
+        for (let i=0; i<ids.nodes.length; i++) {
+          await Sync.modifyTranslations({
+            shop,
+            resourceType: 'PRODUCT',
+            resourceId: ids.nodes[i].resourceId,
+            status: 0,
+          })
+        }
+      }
+  
+      await Sync.modifyProcess({
+        shop,
+        resourceType: 'PRODUCT',
+        cursor: ids.pageInfo ? ids.pageInfo.endCursor : '',
+        hasNext: ids.pageInfo ? ids.pageInfo.hasNextPage : false, 
+      });
+      
+    } else {
+      await Sync.modifyProcess({
+        shop,
+        resourceType: 'PRODUCT',
+        cursor: '',
+        hasNext: false, 
+      });
+    }
+
+    result = { hasNext };
+
+  } else if (data.action == 'sync_do') {
+    // Load product list
+    
+    const syncTargets = await Sync.getTranslations(shop);
+    let isLeft = true;
+    if (syncTargets && (syncTargets.length > 0)) {
+      for (let i=0; i<syncTargets.length; i++) {
+        const target = syncTargets[i];
+        if (target.resourceType == 'PRODUCT') {
+          //
+          await syncProductTranslations(shop, admin, target.resourceId.split('/').pop(), false);
+          //
+          await Sync.modifyTranslations({
+            ...target,
+            status: 1,
+          });
+        }
+      }
+    } else {
+      isLeft = false;
+    }
+
+    result = { isLeft };
   }
 
   return Response.json({ ...result, input:data, action:data.action });

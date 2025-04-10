@@ -209,9 +209,9 @@
   background: var(--p-color-bg-surface-brand-selected);
 }
 .item--section {
-  background: var(--p-color-bg-fill-transparent);
-  border-bottom: solid 1px var(--p-color-bg-surface-brand-selected);
-  border-top: solid 1px var(--p-color-bg-surface-brand-selected);
+  background: var(--p-color-avatar-seven-text-on-bg-fill);
+  border-bottom: solid 1px var(--p-color-bg-fill-magic-secondary-active);
+  border-top: solid 1px var(--p-color-bg-fill-magic-secondary-active);
 }
 .highlighted {
   background: var(--p-color-bg-fill-magic-secondary-active) !important;

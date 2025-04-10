@@ -3,9 +3,11 @@ import {
   Text,
   Button,
   BlockStack,
+  Box,
   ActionList,
   Popover,
   OptionList,
+  ChoiceList,
   InlineStack,
 } from "@shopify/polaris";
 
@@ -53,12 +55,22 @@ export const CheckListPop = ({label, options, checked, multiple, onChange, suffi
             autofocusTarget="first-node"
             onClose={togglePopActive}
             >
-            <OptionList
-                onChange={(selected: string[]) => {setSelected(selected); setPopActive(false); onChange(selected)}}
-                options={options}
-                selected={selected}
-                allowMultiple = {multiple}
-            />
+                <Box padding='200'>
+                    <ChoiceList
+                        title={label}
+                        titleHidden
+                        onChange={(selected: string[]) => {setSelected(selected); setPopActive(false); onChange(selected)}}
+                        choices={options}
+                        selected={selected}
+                        allowMultiple = {multiple}
+                    />
+                    {/* <OptionList
+                        onChange={(selected: string[]) => {setSelected(selected); setPopActive(false); onChange(selected)}}
+                        options={options}
+                        selected={selected}
+                        allowMultiple = {multiple}
+                    /> */}
+                </Box>
         </Popover>
     )
 }

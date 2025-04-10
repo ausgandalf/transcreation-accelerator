@@ -29,10 +29,11 @@ import { authenticate, login } from "../../shopify.server";
 import styles from "./styles.module.css";
 import appStyles from "../../res/style.css?url";
 
+import { SyncRunner } from "app/components/SyncRunner";
 import { SelectPop } from 'app/components/SelectPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
 import { getRedirect } from 'app/components/Functions';
-import { getShopLocales } from 'app/api/App';
+import { getShopLocales } from 'app/api/GraphQL';
 
 import { Skeleton } from './skeleton';
 import { ResourceList } from './list';
@@ -186,19 +187,38 @@ export default function App() {
               // TODO - Auto translation logic will be planted.
             }
           }}
-          secondaryActions={[{
-            content: 'View Store',
-            disabled: shop && (shop != '') ? false : true,
-            onAction: () => {
-              getRedirect(shopify).dispatch(
-                Redirect.Action.REMOTE,
-                {
-                  url: `https://${shop}`,
-                  newContext: true,
-                }
-              )
-            },
-          }]}
+          secondaryActions={
+            <InlineStack gap="100">
+              <SyncRunner asButton />
+              <Button 
+                disabled={shop && (shop != '') ? false : true} 
+                onClick={() => {
+                  getRedirect(shopify).dispatch(
+                    Redirect.Action.REMOTE,
+                    {
+                      url: `https://${shop}`,
+                      newContext: true,
+                    }
+                  )
+                }}
+              >View store</Button>
+            </InlineStack>
+          }
+          // secondaryActions={[
+          //   {
+          //     content: 'View Store',
+          //     disabled: shop && (shop != '') ? false : true,
+          //     onAction: () => {
+          //       getRedirect(shopify).dispatch(
+          //         Redirect.Action.REMOTE,
+          //         {
+          //           url: `https://${shop}`,
+          //           newContext: true,
+          //         }
+          //       )
+          //     },
+          //   }
+          // ]}
         >
           {isLoading && (<LoadingScreen />)}
           <Layout>

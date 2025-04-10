@@ -37,10 +37,10 @@ import polarisTranslations from "@shopify/polaris/locales/en.json";
 import { authenticate, login } from "../../shopify.server";
 
 import { SelectPop } from 'app/components/SelectPop';
-import { MarketsPop } from 'app/components/MarkertsPop';
+import { MarketsPop } from 'app/components/MarketsPop';
 import { LoadingScreen } from 'app/components/LoadingScreen';
 import { isSaveBarOpen, getRedirect, makeReadable, getReadableDate, enterFullscreen, exitFullscreen } from 'app/components/Functions';
-import { getProducts, getProduct, getTranslationsByIds, setTranslations, deleteTranslations } from 'app/api/App';
+import { getProducts, getProduct, getTranslationsByIds, setTranslations, deleteTranslations } from 'app/api/GraphQL';
 import { CheckListPop } from 'app/components/CheckListPop';
 
 import { thStyle, cellStyle, sourceCellStyle, xtraCellStyle, targetCellStyle, textareaStyle } from "app/res/style";

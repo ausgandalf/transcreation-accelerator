@@ -34,12 +34,15 @@ import {
 import { authenticate, login } from "../../shopify.server";
 
 import { LoadingScreen } from 'app/components/LoadingScreen';
+import { SyncRunner } from 'app/components/SyncRunner';
+
 import { extractId, getRedirect, makeReadable, getReadableDate, getIDBySection, getFullscreen, enterFullscreen, exitFullscreen, makeFullscreen, sleep } from 'app/components/Functions';
-import { getProductInfo } from 'app/api/App';
+import { getProductInfo } from 'app/api/GraphQL';
 import { thStyle, cellStyle, sourceCellStyle, xtraCellStyle, targetCellStyle, textareaStyle } from "app/res/style";
 import { SkeletonLocalize, SkeletonTranslation, SkeletonTranslationContent } from '../../components/Skeletons';
 import { ResourcePanel } from './list';
 import { SearchPanel } from './search';
+
 
 import { sections, transKeys } from 'app/api/data';
 import { Editor } from 'app/components/Editor';
@@ -300,6 +303,7 @@ export default function App() {
       translations: JSON.stringify(translations),
       id: selectedResource.id,
       market: currentMarket.id,
+      marketLabel: currentMarket.name,
       locale: currentLocale.locale,
       action: 'trans_submit',
     };
@@ -571,6 +575,7 @@ export default function App() {
                   </InlineStack>
                 </div>
                 <ButtonGroup>
+                  <SyncRunner asButton />
                   <Button onClick={() => {
                     getRedirect(shopify).dispatch(
                       Redirect.Action.REMOTE,
@@ -599,7 +604,7 @@ export default function App() {
               <div className='layout__section layout__section--resource'>
 
                 <ResourcePanel onSelect={selectResource} selected={selected} section={section} visible={!isSearchVisible} />
-                <SearchPanel q={searchKey} onSelect={selectResource} markets={context.markets}  visible={isSearchVisible} />
+                <SearchPanel q={searchKey} onSelect={selectResource} locales={context.locales} markets={context.markets}  visible={isSearchVisible} />
 
               </div>
               
