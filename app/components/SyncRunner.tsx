@@ -89,11 +89,11 @@ export const SyncRunner = (props:SyncRunnerProps) => {
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
 
-  const buttonTooltip = () => (syncHasNext || isSyncPoolLeft) ? `Syncing the search index...` : `Not seeing some translations in your search results? Give the search index a quick re-sync!`;
+  const buttonTooltip = () => (syncHasNext || isSyncPoolLeft) ? `Syncing the search index...` : `Some translations not showing up? Re-sync the search index — it might take long!`;
   return (
     <div>
       {asButton && (
-        <Tooltip active={syncHasNext || isSyncPoolLeft} content={buttonTooltip()}>
+        <Tooltip active content={buttonTooltip()}>
           <Button loading={syncHasNext || isSyncPoolLeft} onClick={syncPoolingRestart}>Re-sync for Search</Button>
         </Tooltip>
       )}
