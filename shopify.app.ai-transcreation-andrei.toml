@@ -1,15 +1,13 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "12967b2878cb1061e5ea705aaaab9f68"
-application_url = "https://carey-crops-hiring-pages.trycloudflare.com"
-embedded = true
 name = "AI Transcreation Andrei"
 handle = "ai-transcreation-andrei"
+application_url = "https://composer-talked-opened-qualifying.trycloudflare.com"
+embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "dept-merch-sandbox.myshopify.com"
-include_config_on_deploy = true
 
 [webhooks]
 api_version = "2025-04"
@@ -20,9 +18,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://carey-crops-hiring-pages.trycloudflare.com/auth/callback",
-  "https://carey-crops-hiring-pages.trycloudflare.com/auth/shopify/callback",
-  "https://carey-crops-hiring-pages.trycloudflare.com/api/auth/callback"
+  "https://composer-talked-opened-qualifying.trycloudflare.com/auth/callback",
+  "https://composer-talked-opened-qualifying.trycloudflare.com/auth/shopify/callback",
+  "https://composer-talked-opened-qualifying.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

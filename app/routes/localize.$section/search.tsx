@@ -22,7 +22,7 @@ import { LoadingScreen } from 'app/components/LoadingScreen';
 import { isSaveBarOpen, extractId, makeReadable } from 'app/components/Functions';
 import { CheckListPop } from 'app/components/CheckListPop';
 import { CheckListSectionsPop } from 'app/components/CheckListSectionsPop';
-import { sections as translateSections, getResourceTypesPerSection } from 'app/api/data';
+import { sections as translateSections, resourceTypePath, getResourceTypesPerSection } from 'app/api/data';
 import { SkeletonResources } from '../../components/Skeletons';
 import { search } from '@shopify/app-bridge/actions/Picker';
 
@@ -113,7 +113,7 @@ export const SearchPanel = (props:SearchPanelProps) => {
     })(searchParams);
 
     setSelectedResource(item);
-    onSelect(parentItem, searchParamValues);
+    onSelect(parentItem, searchParamValues, resourceTypePath[item.resourceType]);
   }
 
   useEffect(() => {
@@ -126,7 +126,12 @@ export const SearchPanel = (props:SearchPanelProps) => {
 
   useEffect(() => {
     find();
-  }, [keyword, page, filters]);
+  }, [keyword, page]);
+
+  useEffect(() => {
+    setPage(0);
+    (() => find())();
+  }, [filters]);
 
 
   useEffect(() => {
@@ -308,7 +313,7 @@ export const SearchPanel = (props:SearchPanelProps) => {
             <Box>
               <InlineStack gap='100'>
                 {Object.keys(filters).map((key, i) => 
-                  filters[key].filter((filter) => (filter != '')).map((filter, j) => (<Tag onRemove={() => {
+                  filters[key].filter((filter) => (filter != '')).map((filter, j) => (<Tag key={`filter-${filter}-${i}-${j}`} onRemove={() => {
                     // TODO
                     const newFilters = filters[key].filter((item) => (item != filter));
                     setFilters((prevFilters) => ({...prevFilters, [key]:newFilters}));
@@ -328,7 +333,7 @@ export const SearchPanel = (props:SearchPanelProps) => {
 
           {/* { isResourceLoading && (<SkeletonResources />) } */}
 
-          {(resources.length < 1) && (
+          {(fetchedTotal < 1) && (
             <EmptyState
               heading="No translations found."
               image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"

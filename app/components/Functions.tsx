@@ -8,6 +8,12 @@ import {
   QuestionCircleIcon,
 } from '@shopify/polaris-icons';
 
+import { 
+  getProductInfo,
+  getCollectionInfo,
+  getTranslatableIds,
+} from 'app/api/GraphQL';
+
 export const getRedirect = (shopify) => {
   const app = createApp({
     apiKey: shopify.config.apiKey,
@@ -18,14 +24,24 @@ export const getRedirect = (shopify) => {
   return redirect;
 }
 
-export const getFullscreen = (shopify):Fullscreen.Fullscreen => {
+export const getFullscreen = (shopify, onEnter?:Function, onExit?:Function) => {
   const app = createApp({
     apiKey: shopify.config.apiKey,
     host: shopify.config.host,
     forceRedirect: true,
   });
   const fullscreen = Fullscreen.create(app);
-  return fullscreen;
+  
+  const unsubscribeEnter = app.subscribe(Fullscreen.Action.ENTER, data => {
+    // console.log('Enter Fullscreen received: ', data);
+    if (onEnter) onEnter(data);
+  });
+  const unsubscribeExit = app.subscribe(Fullscreen.Action.EXIT, data => {
+    // console.log('Exit Fullscreen received: ', data);
+    if (onExit) onExit(data);
+  });
+  
+  return {fullscreen, unsubscribeEnter, unsubscribeExit};
 }
 export const enterFullscreen = (fullscreen:Fullscreen.Fullscreen) => {
   fullscreen && fullscreen.dispatch(Fullscreen.Action.ENTER);
@@ -33,8 +49,8 @@ export const enterFullscreen = (fullscreen:Fullscreen.Fullscreen) => {
 export const exitFullscreen = (fullscreen:Fullscreen.Fullscreen) => {
   fullscreen && fullscreen.dispatch(Fullscreen.Action.EXIT);
 }
-export const makeFullscreen = (shopify) => {
-  const fullscreen:Fullscreen.Fullscreen = getFullscreen(shopify);
+export const makeFullscreen = (shopify, onEnter?:Function, onExit?:Function) => {
+  const { fullscreen } = getFullscreen(shopify, onEnter, onExit);
   fullscreen.dispatch(Fullscreen.Action.ENTER);
   return fullscreen;
 }
@@ -75,7 +91,8 @@ export const tooltip = (tip: string) => {
   return <Tooltip content={tip}><Icon source={QuestionCircleIcon} /></Tooltip>
 }
 
-export const makeReadable = (text:string) => {
+export const makeReadable = (text:string|undefined) => {
+  if (typeof text == 'undefined') text = '';
   return text.replaceAll('_', ' ').split('_')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
@@ -151,10 +168,37 @@ export function getIDBySection(id?:string|null, section?:string) {
     case 'product':
       idv = `gid://shopify/Product/${id}`;
       break;
+    case 'collection':
+      idv = `gid://shopify/Collection/${id}`;
+      break;
+    default: 
+      idv = `gid://shopify/Shop/${id}`; // Should we??
   }
   return idv;
 }
 
 export function extractId(id:string) {
   return id.split('/').pop();
+}
+
+export async function getResourceInfo (graphql, id:string, path?:string) {
+  let endLoop = 0;
+  let info = {
+    id: '',
+    title: '',
+  };
+
+  while (endLoop < 10) {
+    try {
+      endLoop++;
+      if (path == 'product') {
+        info = await getProductInfo(graphql, id);
+      } else if (path == 'collection') {
+        info = await getCollectionInfo(graphql, id);
+      }
+      endLoop = 10;
+    } catch (e) {}
+  }
+
+  return info;
 }

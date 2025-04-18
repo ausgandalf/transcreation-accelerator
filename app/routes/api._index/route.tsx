@@ -2,7 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
 import { TranslationRow, Translations } from "app/models/Translations";
 import { SyncTranslationsRow, SyncProcessRow, Sync } from "app/models/Sync";
-import { syncProductTranslations } from "app/api/Actions";
+import { syncProductTranslations, syncCollectionTranslations, doSyncProcess } from "app/api/Actions";
 import { resourceTypePath } from "app/api/data";
 import { getIDBySection } from "app/components/Functions";
 
@@ -11,6 +11,7 @@ import {
   getProductsWithOptions,
   getProduct, 
   getProductInfo,
+  getCollectionInfo,
   getCollections,
   getTranslationsByIds, 
   setTranslations, 
@@ -22,7 +23,7 @@ import {
   getTranslatableIds,
 } from 'app/api/GraphQL';
 
-import { sleep } from "app/components/Functions";
+import { sleep, getResourceInfo } from "app/components/Functions";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 
@@ -33,7 +34,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   let result:any = {};
 
-  return Response.json({ msg:'Welcome!' });
+  return { msg:'Welcome!' };
+  // return Response.json({ msg:'Welcome!' });
 };
 
 export async function action({ request, params }) {
@@ -107,6 +109,22 @@ export async function action({ request, params }) {
         endLoop = true;
       } catch (e) {}
     }
+  } else if (data.action == 'collection_read') {
+    // Load product info
+    const ids = [data.id];
+
+    // Load Translation data
+    let endLoop = 0; // We fetch translation data only when product is found.
+    while (endLoop < 10) {
+      try {
+        endLoop++;
+        result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
+        endLoop = 10;
+      } catch (e) {}
+    }
+    result['idTypes'] = {[data.id]:'COLLECTION'};
+    result['collection'] = {id: data.id};
+    
   } else if (data.action == 'trans_read') {
     // Load Product info
     const ids = JSON.parse(data.ids);
@@ -312,31 +330,24 @@ export async function action({ request, params }) {
       v = v.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
       v = v.replaceAll(q, `<em>${q}</em>`);
 
-      const objId = getIDBySection(x.parentId ? x.parentId : x.resourceId, 'product');
+      const _path = resourceTypePath[x.resourceType];
+      const objId = getIDBySection(x.parentId ? x.parentId : x.resourceId, _path);
       // console.log(x);
       // console.log(objId);
       if (!(objId in refined)) {
         refined[objId] = {
+          _path,
           info: {},
           items: []
         };
       }
-      refined[objId].items.push({...x, parentId:objId, highlight:v, path:resourceTypePath[x.resourceType]});
+      refined[objId].items.push({...x, parentId:objId, highlight:v, _path});
     });
 
     // console.log('trans-refined:', refined);
 
     for (let key in refined) {
-      let endLoop = false;
-      let product = null;
-      while (!endLoop) {
-        try {
-          product = await getProductInfo(admin.graphql, key);
-          endLoop = true;
-        } catch (e) {}
-      }
-
-      refined[key].info = product;
+      refined[key].info = await getResourceInfo(admin.graphql, key, refined[key]._path);
     }
     // console.log('product-info-filled-up:', refined);
     result['result'] = {total, found: rows.length, result: refined};
@@ -384,54 +395,11 @@ export async function action({ request, params }) {
   } else if (data.action == 'sync_process') {
     // Load product list
     const forceRestart = (data.force == '1');
+    const jobs = ['PRODUCT', 'COLLECTION'];
 
-    let cursor:string|null = '';
-    let hasNext:boolean|null = true;
-
-    if (!forceRestart) {
-      const syncProcessRow = await Sync.getSync({shop, resourceType: 'PRODUCT'});
-      // console.log('Sync row: ', syncProcessRow);
-      cursor = syncProcessRow ? syncProcessRow.cursor : '';
-      hasNext = syncProcessRow ? syncProcessRow.hasNext : true;
-    }
-
-    let ids:any = false;
-    let endLoop = hasNext ? 0 : 10;
-    while (endLoop < 10) {
-      try {
-        endLoop ++;
-        ids = await getTranslatableIds(admin.graphql, 'PRODUCT', cursor);
-        endLoop = 10;
-      } catch (e) {}
-    }
-    
-    if ( ids ) {
-      if ( ids.nodes ) {
-        // Insert into DB
-        for (let i=0; i<ids.nodes.length; i++) {
-          await Sync.modifyTranslations({
-            shop,
-            resourceType: 'PRODUCT',
-            resourceId: ids.nodes[i].resourceId,
-            status: 0,
-          })
-        }
-      }
-  
-      await Sync.modifyProcess({
-        shop,
-        resourceType: 'PRODUCT',
-        cursor: ids.pageInfo ? ids.pageInfo.endCursor : '',
-        hasNext: ids.pageInfo ? ids.pageInfo.hasNextPage : false, 
-      });
-      
-    } else {
-      await Sync.modifyProcess({
-        shop,
-        resourceType: 'PRODUCT',
-        cursor: '',
-        hasNext: false, 
-      });
+    let hasNext = false;
+    for (let i=0; i<jobs.length; i++) {
+      hasNext = hasNext || await doSyncProcess(admin.graphql, shop, jobs[i], forceRestart);
     }
 
     result = { hasNext };
@@ -444,15 +412,23 @@ export async function action({ request, params }) {
     if (syncTargets && (syncTargets.length > 0)) {
       for (let i=0; i<syncTargets.length; i++) {
         const target = syncTargets[i];
+        console.log(target);
         if (target.resourceType == 'PRODUCT') {
           //
           await syncProductTranslations(shop, admin, target.resourceId.split('/').pop(), false);
+
+        } else if (target.resourceType == 'COLLECTION') {
           //
-          await Sync.modifyTranslations({
-            ...target,
-            status: 1,
-          });
+          await syncCollectionTranslations(shop, admin, target.resourceId.split('/').pop(), false);
+          
         }
+
+        // Flag as translate synced on DB
+        await Sync.modifyTranslations({
+          ...target,
+          status: 1,
+        });
+
       }
     } else {
       isLeft = false;
@@ -461,5 +437,6 @@ export async function action({ request, params }) {
     result = { isLeft };
   }
 
-  return Response.json({ ...result, input:data, action:data.action });
+  return { ...result, input:data, action:data.action };
+  // return Response.json({ ...result, input:data, action:data.action });
 }

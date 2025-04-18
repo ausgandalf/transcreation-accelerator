@@ -94,7 +94,7 @@ export const SyncRunner = (props:SyncRunnerProps) => {
     <div>
       {asButton && (
         <Tooltip active content={buttonTooltip()}>
-          <Button loading={syncHasNext || isSyncPoolLeft} onClick={syncPoolingRestart}>Re-sync for Search</Button>
+          <Button loading={syncHasNext || isSyncPoolLeft} onClick={syncPoolingRestart}>Re-sync</Button>
         </Tooltip>
       )}
     </div>

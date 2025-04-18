@@ -16,6 +16,7 @@ import {
 import { ActionListItemDescriptor, ActionListSection } from '@shopify/polaris/build/ts/src/types';
 
 interface SelectPopProps {
+    closeOnSelect?: boolean,
     label: string,
     items?: ActionListItemDescriptor[],
     sections?: ActionListSection[],
@@ -24,6 +25,7 @@ interface SelectPopProps {
 }
 
 const defaultProps: SelectPopProps = {
+    closeOnSelect: false,
     label: 'Select',
     variant: 'headingLg',
     suffix: <Icon source={ChevronDownIcon}/>,
@@ -31,7 +33,7 @@ const defaultProps: SelectPopProps = {
 
 export const SelectPop = (props : SelectPopProps ) => {
     props = {...defaultProps, ...props};
-    const {label, variant, items, sections, suffix} = props;
+    const {closeOnSelect, label, variant, items, sections, suffix} = props;
 
     const [popActive, setPopActive] = useState(false);
 
@@ -58,6 +60,9 @@ export const SelectPop = (props : SelectPopProps ) => {
                     <ActionList
                         actionRole="menuitem"
                         items={items}
+                        onActionAnyItem={() => {
+                            if (closeOnSelect) setPopActive(false)
+                        }}
                     />
                 )}
 
@@ -65,6 +70,9 @@ export const SelectPop = (props : SelectPopProps ) => {
                     <ActionList
                         actionRole="menuitem"
                         sections={sections}
+                        onActionAnyItem={() => {
+                            if (closeOnSelect) setPopActive(false)
+                        }}
                     />
                 )}
 

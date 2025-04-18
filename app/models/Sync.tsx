@@ -41,7 +41,8 @@ export const Sync = {
 
   modifyTranslations: async (row: SyncTranslationsRow) => {
     const {shop, resourceType, resourceId, status} = row;
-    if ('id' in row) delete row.id;
+    const createdRow = {...row};
+    if ('id' in createdRow) delete createdRow.id;
 
     const where = {
       shop_resourceType_resourceId: {
@@ -55,8 +56,8 @@ export const Sync = {
     try {
       newRow = await db.syncTranslations.upsert({
         where,
-        update: row,
-        create: row,
+        update: createdRow,
+        create: createdRow,
       });  
     } catch (e) {
       console.log(e);

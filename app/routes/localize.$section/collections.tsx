@@ -63,7 +63,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
     })(searchParams);
 
     setSelectedResource(item);
-    onSelect(item, searchParamValues, 'product');
+    onSelect(item, searchParamValues, 'collection');
   }
 
   useEffect(() => {
@@ -74,19 +74,21 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
     // console.log(fetcher);
     if (!fetcher.data) {
     } else {
-      if (fetcher.data.action == 'product_list') {
+      if (fetcher.data.action == 'collection_list') {
         
         setKnownTotalPage(fetcher.data.total);
-        if (fetcher.data.products.pageInfo.hasNextPage) {
-          setCursor(fetcher.data.products.pageInfo.endCursor);
+        if (fetcher.data.collections.pageInfo.hasNextPage) {
+          setCursor(fetcher.data.collections.pageInfo.endCursor);
         } else {
           setCursor(''); // Disable loading
         }
-        const newResources = [...resources, ...fetcher.data.products.nodes];
+        
+        const newResources = [...resources, ...fetcher.data.collections.nodes];
+        // console.log('fetched', newResources);
         setResources(newResources);
 
         // Select first resource, if nothing selected.
-        if (!selectedResource && (fetcher.data.products.nodes.length > 0)) selectResource(fetcher.data.products.nodes[0]);
+        if (!selectedResource && (fetcher.data.collections.nodes.length > 0)) selectResource(fetcher.data.collections.nodes[0]);
         
         // Remove loading anim
         setIsResourceLoading(false);
@@ -106,36 +108,30 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
     setPagedResources(showingResources);
   }, [resources, page]);
 
-  const loadProducts = (props:{}) => {
+  const loadCollections = (props:{}) => {
     // if (!isFirstLoad && isLastPage) return;
     setIsResourceLoading(true);
     const data = {
       cursor: props.cursor,
       perPage: props.perPage,
-      status: props.status,
-      action: 'product_list',
+      action: 'collection_list',
     };
     // console.log('list products...');
     fetcher.submit(data, { action: "/api", method: "post" });
     // submit(data, { method: "post" });
   };
 
-  const loadProductsByState = () => {
-    loadProducts({cursor, perPage, status: filterStatus});
+  const doLoadCollections = () => {
+    // console.log('loading...colleciton...');
+    loadCollections({cursor, perPage});
   };
 
   useEffect(() => {
     // console.log('Is first load?', isFirstLoad, 'Should load?', shouldLoad, 'Is last page?', isLastPage, cursor, page);
-    if (isFirstLoad.current || shouldLoad) loadProductsByState();
+    // console.log('useEffect checker:', resources, page, isFirstLoad, shouldLoad);
+    if (isFirstLoad.current || shouldLoad) doLoadCollections();
     isFirstLoad.current = false;
   }, [page]);
-
-  const filters = [
-    {value: '', label: 'All'},
-    {value: 'ACTIVE', label: 'Active'},
-    {value: 'DRAFT', label: 'Draft'},
-    {value: 'ARCHIVED', label: 'Archived'},
-  ]
 
   const renderItem = (item:{}) => {
     return (
@@ -159,7 +155,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
         <InlineStack gap='100' wrap={false}>
           {item.image ? (
             <Thumbnail
-              source={item.image.preview.image.url + '&width=24'}
+              source={item.image.url + '&width=24'}
               size="extraSmall"
               alt={item.title}
             />
@@ -193,25 +189,6 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
         <Box padding='200'>
           <InlineStack align='space-between' blockAlign='center'>
             <Text as='p'>Showing {pagedResources.length} of {knownTotalPage} Items</Text>
-            <CheckListPop 
-              label={<Button icon={FilterIcon} accessibilityLabel='Filter' />} 
-              multiple={false} 
-              options={filters} 
-              checked={filters.length > 0 ? [filters[0].value] : []}
-              onChange={(selected: string) => {
-                // TODO
-                document.body.classList.toggle('resource-panel--open', false);
-                setFilterStatus(selected[0]);
-
-                // Initialize
-                setPage(0);
-                setCursor('');
-                setResources([]);
-
-                // console.log('refreshing...', {cursor: '', perPage, status: selected[0]});
-                loadProducts({cursor: '', perPage, status: selected[0]});
-              }} 
-            />
           </InlineStack>
         </Box>
 
@@ -232,7 +209,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
           
           { (pagedResources.length > 0) ? pagedResources.map((x, i) => (
             <div 
-              key={'product-' + x.handle}
+              key={'collection-' + x.handle}
               className={'item' + ((x.id == selectedResource.id) ? ' selected' : '')}
               // style={{
               //   background: (x.handle == selectedResource.handle) ? 'var(--p-color-bg-surface-brand-selected)' : 'transparent',

@@ -96,6 +96,7 @@ export const resourceTypePath = {
   'PRODUCT': 'product',
   'PRODUCT_OPTION': 'product',
   'PRODUCT_OPTION_VALUE': 'product',
+  'COLLECTION': 'collection',
 }
 
 export const getResourceTypesPerSection = () => {

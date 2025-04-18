@@ -21,6 +21,7 @@ import {
 } from '@shopify/polaris-icons';
 
 import { thStyle, cellStyle, sourceCellStyle, targetCellStyle } from "app/res/style";
+import { makeReadable } from "./Functions";
 
 export const SkeletonResources = () => {
   return (
@@ -42,7 +43,18 @@ export const SkeletonResources = () => {
   );
 }
 
-export const SkeletonTranslation = () => {
+
+export interface SkeletonTranslationProp {
+  section? : string
+}
+export const defaultSkeletonTranslationProp:SkeletonTranslationProp = {
+  section: 'product'
+}
+
+export const SkeletonTranslation = (prop : SkeletonTranslationProp) => {
+  prop = {...defaultSkeletonTranslationProp, ...prop};
+  const { section } = prop;
+
   return (
     <BlockStack gap='400'>
       <InlineStack align='space-between' blockAlign='center'>
@@ -54,75 +66,111 @@ export const SkeletonTranslation = () => {
               alt='Product Thumbnail'
             />
           </Box>
-          <Text as='h2' variant='headingLg'>Product</Text>
+          <Text as='h2' variant='headingLg'>{ makeReadable(section) }</Text>
         </InlineStack>
         <Box minWidth="100px">
           <SkeletonDisplayText size="small" />
         </Box>
       </InlineStack>
 
-      <SkeletonTranslationContent />
+      <SkeletonTranslationContent section={section} />
 
     </BlockStack>
   );
 }
 
-export const SkeletonTranslationContent = () => {
+export const SkeletonTranslationContent = (prop : SkeletonTranslationProp) => {
+  prop = {...defaultSkeletonTranslationProp, ...prop};
+  const { section } = prop;
+
   return (
-    <BlockStack gap='400'>
+    <div>
 
-      <Card padding='0'>
-        <table width='100%' cellSpacing='0' cellPadding='0'>
-          <thead>
-            <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}><Text as="p" variant="headingMd" alignment="start">Product</Text></th></tr>
-            <tr>
-              {[...Array(3)].map((x, i) => (
-                <th key={'skeleton-mainth--' + i} style={thStyle}><Box><SkeletonDisplayText size="small" /></Box></th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[...Array(5)].map((x, i) => (
-              <tr key={'skeleton-maintr--' + i}>
-                {[...Array(3)].map((y, j) => (
-                  <td key={'skeleton-maintr-th--' + j} width='33%' style={cellStyle}><Box><SkeletonBodyText lines={1}/></Box></td>
+      {(section == 'product') && (
+        <BlockStack gap='400'>
+          <Card padding='0'>
+            <table width='100%' cellSpacing='0' cellPadding='0'>
+              <thead>
+                <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}><Text as="p" variant="headingMd" alignment="start">Product</Text></th></tr>
+                <tr>
+                  {[...Array(3)].map((x, i) => (
+                    <th key={'skeleton-mainth--' + i} style={thStyle}><Box><SkeletonDisplayText size="small" /></Box></th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...Array(5)].map((x, i) => (
+                  <tr key={'skeleton-maintr--' + i}>
+                    {[...Array(3)].map((y, j) => (
+                      <td key={'skeleton-maintr-th--' + j} width='33%' style={cellStyle}><Box><SkeletonBodyText lines={1}/></Box></td>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+              </tbody>
+            </table>
+          </Card>
 
-      <Card padding='0'>
-        <table width='100%' cellSpacing='0' cellPadding='0'>
-          <thead>
-            <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}><Text as="p" variant="headingMd" alignment="start">Product options</Text></th></tr>
-            <tr>
-              {[...Array(3)].map((x, i) => (
-                <th key={'skeleton-optth--' + i} style={thStyle}><Box><SkeletonDisplayText size="small" /></Box></th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[...Array(2)].map((x, i) => (
-              <tr key={'skeleton-opttr--' + i}>
-                {[...Array(3)].map((y, j) => (
-                  <td key={'skeleton-opttr-th--' + j} width='33%' style={{
-                    borderTop: '1px solid var(--p-color-border-secondary)',
-                    padding: 'var(--p-space-300) var(--p-space-300)',
-                  }}><Box><SkeletonBodyText lines={1}/></Box></td>
+          <Card padding='0'>
+            <table width='100%' cellSpacing='0' cellPadding='0'>
+              <thead>
+                <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}><Text as="p" variant="headingMd" alignment="start">Product options</Text></th></tr>
+                <tr>
+                  {[...Array(3)].map((x, i) => (
+                    <th key={'skeleton-optth--' + i} style={thStyle}><Box><SkeletonDisplayText size="small" /></Box></th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...Array(2)].map((x, i) => (
+                  <tr key={'skeleton-opttr--' + i}>
+                    {[...Array(3)].map((y, j) => (
+                      <td key={'skeleton-opttr-th--' + j} width='33%' style={{
+                        borderTop: '1px solid var(--p-color-border-secondary)',
+                        padding: 'var(--p-space-300) var(--p-space-300)',
+                      }}><Box><SkeletonBodyText lines={1}/></Box></td>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+              </tbody>
+            </table>
+          </Card>
 
-    </BlockStack>
+        </BlockStack>
+      )}
+
+      {(section == 'collection') && (
+        <BlockStack gap='400'>
+          <Card padding='0'>
+            <table width='100%' cellSpacing='0' cellPadding='0'>
+              <thead>
+                <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}><Text as="p" variant="headingMd" alignment="start">Collection</Text></th></tr>
+                <tr>
+                  {[...Array(2)].map((x, i) => (
+                    <th key={'skeleton-mainth--' + i} style={thStyle}><Box><SkeletonDisplayText size="small" /></Box></th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...Array(5)].map((x, i) => (
+                  <tr key={'skeleton-maintr--' + i}>
+                    {[...Array(3)].map((y, j) => (
+                      <td key={'skeleton-maintr-th--' + j} width='33%' style={cellStyle}><Box><SkeletonBodyText lines={1}/></Box></td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </BlockStack>
+      )}
+    </div>
   );
 }
 
-export const SkeletonLocalize = () => {
+export const SkeletonLocalize = (prop : SkeletonTranslationProp) => {
+  prop = {...defaultSkeletonTranslationProp, ...prop};
+  const { section } = prop;
+
   return (
     <Box minHeight='100%'>
 
@@ -165,7 +213,7 @@ export const SkeletonLocalize = () => {
           
           <div>
             <Box padding='400'>
-              <SkeletonTranslation />
+              <SkeletonTranslation section={section} />
             </Box>
           </div>  
         </div>

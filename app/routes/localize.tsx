@@ -120,35 +120,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
-export async function action({ request, params }) {
-  const { session } = await authenticate.admin(request);
-  const { shop } = session;
-
-  /** @type {any} */
-  const data = {
-    ...Object.fromEntries(await request.formData()),
-    shop,
-  };
-  
-  const defaultResponse:ActionDataType = {
-    errors: {},
-    ticket: false,
-  };
-  const errors = validateTicket(data);
-
-  if (errors) {
-    return Response.json({...defaultResponse, errors}, { status: 422 });
-  }
-
-  // TODO Ticket creation
-  // const ticket = await db.tickets.create({ data });
-  const ticket = {
-    id: 1,
-  };
-
-  return Response.json({ ...defaultResponse, ticket });
-}
-
 export default function App() {
   
   const shopify = useAppBridge();
@@ -220,6 +191,7 @@ export default function App() {
   const renderSections = () => {
  
     return (<SelectPop 
+      closeOnSelect={true}
       label={pathLabel()}
       variant='headingMd'
       sections={sections.map(

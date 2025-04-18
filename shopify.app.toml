@@ -1,29 +1,28 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "a7e12a2610d20e6486de1aa5ea870187"
-application_url = "https://journalist-typing-queens-maps.trycloudflare.com"
+application_url = "https://banana-sydney-tr-raleigh.trycloudflare.com"
 embedded = true
 name = "AI Transcreation"
 handle = "ai-transcreation"
-
-[build]
-include_config_on_deploy = true
-automatically_update_urls_on_dev = true
-dev_store_url = "dept-merch-sandbox.myshopify.com"
 
 [webhooks]
 api_version = "2025-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_content,read_customer_events,read_files,write_files,read_legal_policies,read_locales,read_locations,read_markets,read_metaobject_definitions,read_metaobjects,read_online_store_navigation,read_online_store_pages,read_orders,read_privacy_settings,read_shipping,read_themes,read_translations,write_translations,write_products,write_themes"
+scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_locales,read_locations,read_markets,read_metaobject_definitions,read_metaobjects,read_online_store_navigation,read_online_store_pages,read_orders,read_privacy_settings,read_shipping,read_themes,read_translations,write_files,write_products,write_themes,write_translations"
 
 [auth]
 redirect_urls = [
-  "https://journalist-typing-queens-maps.trycloudflare.com/auth/callback",
-  "https://journalist-typing-queens-maps.trycloudflare.com/auth/shopify/callback",
-  "https://journalist-typing-queens-maps.trycloudflare.com/api/auth/callback"
+  "https://banana-sydney-tr-raleigh.trycloudflare.com/auth/callback",
+  "https://banana-sydney-tr-raleigh.trycloudflare.com/auth/shopify/callback",
+  "https://banana-sydney-tr-raleigh.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
+
+[build]
+dev_store_url = "dept-merch-sandbox.myshopify.com"
+automatically_update_urls_on_dev = true

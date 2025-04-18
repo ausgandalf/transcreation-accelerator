@@ -7,7 +7,6 @@
   background-color: var(--p-color-bg-fill-hover);
 }
 
-
 .layout--translate {
   display: grid;
   grid-template-columns: 300px 1fr;
@@ -33,10 +32,18 @@
 }
 
 @keyframes drawerClosing {
-  0% {transform: translateX(calc(-100% + 8px));}
-  25% {transform: translateX(0);}
-  75% {transform: translateX(0);}
-  100% {transform: translateX(calc(-100% + 8px));}
+  0% {
+    transform: translateX(calc(-100% + 8px));
+  }
+  25% {
+    transform: translateX(0);
+  }
+  75% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-100% + 8px));
+  }
 }
 
 @media (max-width: 1160px) {
@@ -52,7 +59,7 @@
     width: 300px;
     z-index: 5;
     transform: translateX(calc(-100% + 8px));
-    transition: transform .3s ease-in-out;
+    transition: transform 0.3s ease-in-out;
     border-right: solid 2px var(--p-color-border-secondary);
   }
   .layout--translate .panel--resource:hover,
@@ -70,7 +77,7 @@
     background: #fff;
   }
   .layout--translate .panel--resource:hover::before,
-  .resource-panel--open .layout--translate .panel--resource::before  {
+  .resource-panel--open .layout--translate .panel--resource::before {
     display: none;
   }
   .layout--translate .panel--resource:after {
@@ -84,8 +91,14 @@
     position: absolute;
     transition: opacity 0.3s linear;
     right: 0;
-    background: rgb(255,255,255);
-    background: linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(231,231,231,1) 25%, rgba(203,203,203,1) 50%, rgba(214,214,214,1) 100%);
+    background: rgb(255, 255, 255);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(231, 231, 231, 1) 25%,
+      rgba(203, 203, 203, 1) 50%,
+      rgba(214, 214, 214, 1) 100%
+    );
     border: solid 1px var(--p-color-border-secondary);
     border-left: none;
     border-radius: 0 100px 100px 0;
@@ -95,23 +108,31 @@
   }
 }
 
-.justClickable, .justClickable:hover {
+.justClickable,
+.justClickable:hover {
   color: inherit;
   text-decoration: none;
 }
 
-.link--external { color: inherit; text-decoration: none;}
-.link--external .Polaris-Text--root + .Polaris-Icon {display: none;}
-.link--external:hover { text-decoration: underline; }
-.link--external:hover .Polaris-Text--root + .Polaris-Icon {display: block;}
+.link--external {
+  color: inherit;
+  text-decoration: none;
+}
+.link--external .Polaris-Text--root + .Polaris-Icon {
+  display: none;
+}
+.link--external:hover {
+  text-decoration: underline;
+}
+.link--external:hover .Polaris-Text--root + .Polaris-Icon {
+  display: block;
+}
 
 .table--translate {
   display: grid;
-  grid-template-columns: 11.25rem 1fr 1fr;
+  grid-template-columns: 15% 25% 25% 15% 10% 10%;
   min-width: 100%;
 }
-
-
 
 @media (max-width: 768px) {
   .table--translate {
@@ -119,17 +140,19 @@
   }
 }
 
-.table--translate thead, 
-.table--translate tbody, 
+.table--translate thead,
+.table--translate tbody,
 .table--translate tr {
   display: contents;
 }
-.table--translate th, 
+.table--translate th,
 .table--translate td {
   overflow: hidden;
   width: 100%;
 }
-.table--translate td {min-height: 45px;}
+.table--translate td {
+  min-height: 45px;
+}
 
 .table--translate .cell--target textarea {
   border: solid 1px transparent;
@@ -145,32 +168,61 @@
   border: none;
 }
 
-.table--translate .cell--target .Polaris-TextField--focus > .Polaris-TextField__Input ~ .Polaris-TextField__Backdrop, .Polaris-TextField--focus > .Polaris-TextField__VerticalContent ~ .Polaris-TextField__Backdrop, .Polaris-TextField--focus > .Polaris-TextField__InputAndSuffixWrapper ~ .Polaris-TextField__Backdrop, .Polaris-TextField:focus-within > .Polaris-TextField__Input ~ .Polaris-TextField__Backdrop, .Polaris-TextField__Input:focus-visible ~ .Polaris-TextField__Backdrop,
-.table--translate .cell--target .Polaris-TextField:not(.Polaris-TextField--disabled):not(.Polaris-TextField--error):not(.Polaris-TextField--readOnly) > .Polaris-TextField__Input:hover:not(:focus-visible) ~ .Polaris-TextField__Backdrop {
+.table--translate
+  .cell--target
+  .Polaris-TextField--focus
+  > .Polaris-TextField__Input
+  ~ .Polaris-TextField__Backdrop,
+.Polaris-TextField--focus
+  > .Polaris-TextField__VerticalContent
+  ~ .Polaris-TextField__Backdrop,
+.Polaris-TextField--focus
+  > .Polaris-TextField__InputAndSuffixWrapper
+  ~ .Polaris-TextField__Backdrop,
+.Polaris-TextField:focus-within
+  > .Polaris-TextField__Input
+  ~ .Polaris-TextField__Backdrop,
+.Polaris-TextField__Input:focus-visible ~ .Polaris-TextField__Backdrop,
+.table--translate
+  .cell--target
+  .Polaris-TextField:not(.Polaris-TextField--disabled):not(
+    .Polaris-TextField--error
+  ):not(.Polaris-TextField--readOnly)
+  > .Polaris-TextField__Input:hover:not(:focus-visible)
+  ~ .Polaris-TextField__Backdrop {
   background-color: transparent;
   outline: none;
 }
 
-.table--translate .cell--target .Polaris-TextField--focus > .Polaris-TextField__Input {
+.table--translate
+  .cell--target
+  .Polaris-TextField--focus
+  > .Polaris-TextField__Input {
   color: var(--p-color-border-focus);
 }
 
 @keyframes placeholder-shimmer {
-  0% { background-position:  100%; }
-100% { background-position: -100%; }
+  0% {
+    background-position: 100%;
+  }
+  100% {
+    background-position: -100%;
+  }
 }
 
 .loading--gray-gradient {
   animation: 3s linear infinite placeholder-shimmer;
-  background-image: linear-gradient(to right, 
-    rgba(0,0,0,.00)   0%, 
-    rgba(0,0,0,.1)  25%, 
-    rgba(0,0,0,.00)  50%, 
-    rgba(0,0,0,.1)  75%, 
-    rgba(0,0,0,.00) 100%
+  background-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.1) 25%,
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0.1) 75%,
+    rgba(0, 0, 0, 0) 100%
   );
   background-size: 200%;
-  height: 100%; width: 100%;
+  height: 100%;
+  width: 100%;
 }
 
 .insertImageItem {
@@ -197,9 +249,16 @@
   opacity: 1;
 }
 
-.item { padding: 10px 20px; border-bottom: dashed 1px var(--p-color-bg-fill-secondary-hover);}
-.item:last-child { border-bottom: none !important;}
-.item-blocks:first-child .item:first-child {border-top: none !important;}
+.item {
+  padding: 10px 20px;
+  border-bottom: dashed 1px var(--p-color-bg-fill-secondary-hover);
+}
+.item:last-child {
+  border-bottom: none !important;
+}
+.item-blocks:first-child .item:first-child {
+  border-top: none !important;
+}
 .item em {
   font-style: normal;
   font-weight: bold;

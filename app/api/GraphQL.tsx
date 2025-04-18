@@ -213,6 +213,27 @@ export async function getProduct(graphql, id:string, isHook = false) {
 }
 
 
+export async function getCollectionInfo(graphql, id:string) {
+
+  const response = await graphql(`
+  query getCollectionInfo {
+    collection(id:"gid://shopify/Collection/658602885455") {
+      id
+      handle
+      title
+      image {
+        url
+      }
+    }
+  }`);
+ 
+  const {
+    data: { collection },
+  } = await response.json();
+
+  return collection;
+}
+
 export async function getCollections(graphql, cursor?:string, limit:number = 12) {
 
   const start = cursor ? `,after:"${cursor}"` : '';
