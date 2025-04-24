@@ -41,6 +41,7 @@ import {
   Thumbnail,
   TextField,
   Checkbox,
+  EmptyState,
 } from "@shopify/polaris";
 import {
   ImageIcon,
@@ -87,6 +88,8 @@ import {
 
 import { ResourcePanel as ProductsPanel } from "./products";
 import { ResourcePanel as CollectionsPanel } from "./collections";
+import { ResourcePanel as BlogsPanel } from "./blogs";
+import { ResourcePanel as ArticlesPanel } from "./articles";
 
 import { SearchPanel } from "./search";
 
@@ -390,69 +393,29 @@ export default function App() {
     // console.log(fetcher);
     if (!fetcher.data) {
     } else {
-      if (fetcher.data.action == "product_read") {
+      
+      const resourceReadActions = [
+        'product_read',
+        'collection_read',
+        'blog_read',
+        'article_read',
+      ];
+
+      if (resourceReadActions.includes(fetcher.data.action)) {
         // TODO
         if (
           fetcher.data.transdata &&
-          fetcher.data.product.id == selectedResource.id
+          fetcher.data.resource.id == selectedResource.id
         ) {
-          setProductInfoIds({ ...fetcher.data.product });
+
+          if (fetcher.data.action == 'product_read') {
+            setProductInfoIds({ ...fetcher.data.resource });
+          } else {
+            setResourceInfo({ ...fetcher.data.resource });
+          }
+          
           setCurrentTranslateMarketLocale(
-            fetcher.data.product.id +
-              "-" +
-              fetcher.data.input.locale +
-              "-" +
-              fetcher.data.input.market,
-          );
-          // Init form state
-          let translatableData = {};
-          let translatableDataObj = {};
-          let transData = {};
-          fetcher.data.transdata.map((x, i) => {
-            translatableData[x.resourceId] = structuredClone(
-              x.translatableContent,
-            );
-
-            translatableDataObj[x.resourceId] = {};
-            x.translatableContent.map((y, j) => {
-              translatableDataObj[x.resourceId][y.key] = { ...y };
-            });
-
-            transData[x.resourceId] = {};
-            x.translations.map((y, j) => {
-              // let obj = getTransSourceObj(x.translatableContent, y.key);
-              let obj = { ...translatableDataObj[x.resourceId][y.key] };
-              // obj.locale = currentLocale.locale;
-              obj.value = y.value;
-              obj.translatableContentDigest = obj.digest;
-              delete obj.digest;
-              delete obj.type;
-              transData[x.resourceId][y.key] = { ...obj };
-
-              translatableDataObj[x.resourceId][y.key]["updated"] = y.updatedAt;
-            });
-          });
-
-          setTransData(translatableData);
-          setTransDataObject(translatableDataObj);
-          setTransIdTypes(fetcher.data.idTypes);
-
-          formStateDispatch({ type: "init", translations: transData });
-          setCleanFormState(transData);
-          setEditors({});
-          // Remove loading anim
-          setIsTranslationLoading(false);
-          setIsTranslationLoaded(true);
-        }
-      } else if (fetcher.data.action == "collection_read") {
-        // TODO
-        if (
-          fetcher.data.transdata &&
-          fetcher.data.collection.id == selectedResource.id
-        ) {
-          setResourceInfo({ ...fetcher.data.collection });
-          setCurrentTranslateMarketLocale(
-            fetcher.data.collection.id +
+            fetcher.data.resource.id +
               "-" +
               fetcher.data.input.locale +
               "-" +
@@ -613,26 +576,27 @@ export default function App() {
   const loadResource = (item) => {
     setIsTranslationLoading(true);
     if (!("_path" in item)) item._path = section;
-    if (item._path == "product") {
+
+    const availablePathes = [
+      'product',
+      'collection',
+      'blog',
+      'article',
+    ];
+
+    if (availablePathes.includes(item._path)) {
       const data = {
         id: item.id,
         market: currentMarket.id,
         locale: currentLocale.locale,
-        action: "product_read",
+        action: item._path + "_read",
       };
       if (!data.market) data.market = "";
       // console.log('Read translation data...');
       fetcher.submit(data, { action: "/api", method: "post" });
-    } else if (item._path == "collection") {
-      const data = {
-        id: item.id,
-        market: currentMarket.id,
-        locale: currentLocale.locale,
-        action: "collection_read",
-      };
-      if (!data.market) data.market = "";
-      // console.log('Read translation data...');
-      fetcher.submit(data, { action: "/api", method: "post" });
+    } else {
+      // 
+      console.log('path is not available.');
     }
   };
 
@@ -806,7 +770,7 @@ export default function App() {
 
   const renderSelectedResourceHeadline = (resource: any) => {
     const _path = resource._path;
-    const showingImage = ["product", "collection"].indexOf(_path) > -1;
+    const showingImage = ["product", "collection", "article"].indexOf(_path) > -1;
     let imageUrl = "";
     if (showingImage) {
       if (_path == "product") {
@@ -814,6 +778,8 @@ export default function App() {
           ? resource.image.preview.image.url + "&width=24"
           : "";
       } else if (_path == "collection") {
+        imageUrl = resource.image ? resource.image.url + "&width=24" : "";
+      } else if (_path == "article") {
         imageUrl = resource.image ? resource.image.url + "&width=24" : "";
       }
     }
@@ -852,6 +818,18 @@ export default function App() {
                 },
                 newContext: true,
               });
+            } else if (_path == "blog") {
+              // TODO
+              getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
+                path: '/blogs/' + resource.id.split("/").pop(),
+                newContext: true,
+              });
+            } else if (_path == "article") {
+              // TODO
+              getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
+                path: '/articles/' + resource.id.split("/").pop(),
+                newContext: true,
+              });
             }
           }}
         >
@@ -866,6 +844,31 @@ export default function App() {
     );
   };
 
+  const renderEmptyState = (path: string) => {
+
+    return (
+      <EmptyState
+        heading={'No ' + makeReadable(path) + ' found.'}
+        image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+      >
+        {path == 'article' && (<Button onClick={() => {
+          getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
+            path: '/content/articles',
+            newContext: true,
+          });
+        }}>Add blog post</Button>)}
+
+        {!['article'].includes(path) && (<Button onClick={() => {
+          getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
+            path: '/' + path + 's',
+            newContext: true,
+          });
+        }}>Add {path}</Button>)}
+
+      </EmptyState>
+    )
+  }
+  
   const renderEditSection = (path: string) => {
     return (
       <div>
@@ -1155,7 +1158,7 @@ export default function App() {
           </BlockStack>
         )}
 
-        {path == "collection" && (
+        {['collection', 'blog', 'article'].includes(path) && (
           <BlockStack gap="400">
             <Card padding="0">
               <table
@@ -1174,7 +1177,7 @@ export default function App() {
                       }}
                     >
                       <Text as="p" variant="headingMd" alignment="start">
-                        Collection
+                        {makeReadable(path)}
                       </Text>
                     </th>
                   </tr>
@@ -1800,6 +1803,23 @@ export default function App() {
                     visible={!isSearchVisible}
                   />
                 )}
+                {section == "blog" && (
+                  <BlogsPanel
+                    onSelect={selectResource}
+                    selected={selectedResource}
+                    section={section}
+                    visible={!isSearchVisible}
+                  />
+                )}
+                {section == "article" && (
+                  <ArticlesPanel
+                    onSelect={selectResource}
+                    selected={selectedResource}
+                    section={section}
+                    visible={!isSearchVisible}
+                  />
+                )}
+                
                 <SearchPanel
                   q={searchKey}
                   onSelect={selectResource}
@@ -1846,7 +1866,8 @@ export default function App() {
                           )}
                         </BlockStack>
                       ) : (
-                        <SkeletonTranslation section={section} />
+                        renderEmptyState(section)
+                        // <SkeletonTranslation section={section} />
                       )}
                     </Box>
                   </div>

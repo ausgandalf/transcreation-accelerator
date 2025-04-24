@@ -2,7 +2,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../../shopify.server";
 import { TranslationRow, Translations } from "app/models/Translations";
 import { SyncTranslationsRow, SyncProcessRow, Sync } from "app/models/Sync";
-import { syncProductTranslations, syncCollectionTranslations, doSyncProcess } from "app/api/Actions";
+import { syncProductTranslations, syncCollectionTranslations, syncOtherTranslations, doSyncProcess } from "app/api/Actions";
 import { resourceTypePath } from "app/api/data";
 import { getIDBySection } from "app/components/Functions";
 
@@ -13,6 +13,9 @@ import {
   getProductInfo,
   getCollectionInfo,
   getCollections,
+  getBlogs,
+  getArticles,
+  getArticlesTotal,
   getTranslationsByIds, 
   setTranslations, 
   deleteTranslations,
@@ -98,7 +101,8 @@ export async function action({ request, params }) {
       result['idTypes'] = idTypes;
     }
 
-    result['product'] = product; // Put product info
+    // result['product'] = product; // Put product info
+    result['resource'] = product; // Put product info
     
   } else if (data.action == 'collection_list') {
     // Load collection list
@@ -110,7 +114,7 @@ export async function action({ request, params }) {
       } catch (e) {}
     }
   } else if (data.action == 'collection_read') {
-    // Load product info
+    
     const ids = [data.id];
 
     // Load Translation data
@@ -123,7 +127,68 @@ export async function action({ request, params }) {
       } catch (e) {}
     }
     result['idTypes'] = {[data.id]:'COLLECTION'};
-    result['collection'] = {id: data.id};
+    result['resource'] = {id: data.id};
+    
+  } else if (data.action == 'blog_list') {
+    // Load blog list
+    let endLoop = false;
+    while (!endLoop) {
+      try {
+        result = await getBlogs(admin.graphql, data.cursor, data.perPage);
+        endLoop = true;
+      } catch (e) {}
+    }
+  } else if (data.action == 'blog_read') {
+    
+    const ids = [data.id];
+
+    // Load Translation data
+    let endLoop = 0; // We fetch translation data only when product is found.
+    while (endLoop < 10) {
+      try {
+        endLoop++;
+        result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
+        endLoop = 10;
+      } catch (e) {}
+    }
+    result['idTypes'] = {[data.id]:'BLOG'};
+    result['resource'] = {id: data.id};
+    
+  } else if (data.action == 'article_list') {
+    // Load blog list
+    let endLoop = 0;
+    while (endLoop < 10) {
+      try {
+        endLoop++;
+        result = await getArticles(admin.graphql, data.cursor, data.perPage, data.status);
+        endLoop = 10;
+      } catch (e) {}
+    }
+
+    endLoop = 0;
+    while (endLoop < 10) {
+      try {
+        endLoop++;
+        result.total = await getArticlesTotal(admin.graphql);
+        endLoop = 10;
+      } catch (e) {}
+    }
+
+  } else if (data.action == 'article_read') {
+    
+    const ids = [data.id];
+
+    // Load Translation data
+    let endLoop = 0; // We fetch translation data only when product is found.
+    while (endLoop < 10) {
+      try {
+        endLoop++;
+        result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
+        endLoop = 10;
+      } catch (e) {}
+    }
+    result['idTypes'] = {[data.id]:'ARTICLE'};
+    result['resource'] = {id: data.id};
     
   } else if (data.action == 'trans_read') {
     // Load Product info
@@ -347,7 +412,15 @@ export async function action({ request, params }) {
     // console.log('trans-refined:', refined);
 
     for (let key in refined) {
-      refined[key].info = await getResourceInfo(admin.graphql, key, refined[key]._path);
+      // Get resource info via GraphQL, but do we need to do this???
+      // refined[key].info = await getResourceInfo(admin.graphql, key, refined[key]._path);
+
+      // Get the title from DB, to reduce GraphQL usage rate
+      refined[key].info = {
+        id: key,
+        title: await Translations.getTitle(shop, key.split('/').pop())
+      }
+
     }
     // console.log('product-info-filled-up:', refined);
     result['result'] = {total, found: rows.length, result: refined};
@@ -395,7 +468,7 @@ export async function action({ request, params }) {
   } else if (data.action == 'sync_process') {
     // Load product list
     const forceRestart = (data.force == '1');
-    const jobs = ['PRODUCT', 'COLLECTION'];
+    const jobs = ['PRODUCT', 'COLLECTION', 'BLOG', 'ARTICLE'];
 
     let hasNext = false;
     for (let i=0; i<jobs.length; i++) {
@@ -405,7 +478,6 @@ export async function action({ request, params }) {
     result = { hasNext };
 
   } else if (data.action == 'sync_do') {
-    // Load product list
     
     const syncTargets = await Sync.getTranslations(shop);
     let isLeft = true;
@@ -417,9 +489,10 @@ export async function action({ request, params }) {
           //
           await syncProductTranslations(shop, admin, target.resourceId.split('/').pop(), false);
 
-        } else if (target.resourceType == 'COLLECTION') {
+        } else {
           //
-          await syncCollectionTranslations(shop, admin, target.resourceId.split('/').pop(), false);
+          await syncOtherTranslations (shop, admin, target.resourceId.split('/').pop(), target.resourceType, false);
+          // await syncCollectionTranslations(shop, admin, target.resourceId.split('/').pop(), false);
           
         }
 

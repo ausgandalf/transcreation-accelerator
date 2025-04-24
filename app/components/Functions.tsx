@@ -11,6 +11,8 @@ import {
 import { 
   getProductInfo,
   getCollectionInfo,
+  getBlogInfo,
+  getArticleInfo,
   getTranslatableIds,
 } from 'app/api/GraphQL';
 
@@ -172,7 +174,7 @@ export function getIDBySection(id?:string|null, section?:string) {
       idv = `gid://shopify/Collection/${id}`;
       break;
     default: 
-      idv = `gid://shopify/Shop/${id}`; // Should we??
+      idv = `gid://shopify/${makeReadable(section)}/${id}`; // Should we??
   }
   return idv;
 }
@@ -195,6 +197,10 @@ export async function getResourceInfo (graphql, id:string, path?:string) {
         info = await getProductInfo(graphql, id);
       } else if (path == 'collection') {
         info = await getCollectionInfo(graphql, id);
+      } else if (path == 'blog') {
+        info = await getBlogInfo(graphql, id);
+      } else if (path == 'article') {
+        info = await getArticleInfo(graphql, id);
       }
       endLoop = 10;
     } catch (e) {}

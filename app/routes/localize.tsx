@@ -214,7 +214,7 @@ export default function App() {
                 let url = `${y.url}?shopLocale=${currentLocale.locale}`;
                 if (currentMarket.handle) url += `&market=${currentMarket.handle}`;
                 setIsLoading(true);
-                navigate(`${y.url}?shopLocale=${currentLocale.locale}`);
+                navigate(`${url}`);
 
                 // getRedirect(shopify).dispatch(
                 //   Redirect.Action.APP,

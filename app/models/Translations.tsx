@@ -75,6 +75,19 @@ export const Translations = {
     return row;
   },
 
+  getTitle : async (shop: string, resourceId: string) => {
+    
+    const row = await db.translations.findFirst({
+      where: { shop, resourceId, field: 'title'},
+    });
+    
+    if (!row) {
+      return '';
+    }
+    
+    return row.content;
+  },
+
   find: async (key: string, resourceTypes: [] = [], locales: [] = [], page = 0, perPage = 10) => {
     const where = { 
       translation: {

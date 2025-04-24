@@ -138,14 +138,14 @@ export const SkeletonTranslationContent = (prop : SkeletonTranslationProp) => {
         </BlockStack>
       )}
 
-      {(section == 'collection') && (
+      {(section != 'product') && (
         <BlockStack gap='400'>
           <Card padding='0'>
             <table width='100%' cellSpacing='0' cellPadding='0'>
               <thead>
-                <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}><Text as="p" variant="headingMd" alignment="start">Collection</Text></th></tr>
+                <tr><th colSpan={3} style={{padding:'var(--p-space-600) var(--p-space-400)'}}><Text as="p" variant="headingMd" alignment="start">{makeReadable(section)}</Text></th></tr>
                 <tr>
-                  {[...Array(2)].map((x, i) => (
+                  {[...Array(3)].map((x, i) => (
                     <th key={'skeleton-mainth--' + i} style={thStyle}><Box><SkeletonDisplayText size="small" /></Box></th>
                   ))}
                 </tr>
@@ -163,6 +163,8 @@ export const SkeletonTranslationContent = (prop : SkeletonTranslationProp) => {
           </Card>
         </BlockStack>
       )}
+
+
     </div>
   );
 }

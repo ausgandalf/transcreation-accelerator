@@ -11,17 +11,16 @@ export const sections = [
   {
     title: 'Online Store',
     items: [
-      {content: 'Blog posts', url: '#'},
-      {content: 'Blog titles', url:  '#'},
-      {content: 'Blog titles', url:  '#'},
-      {content: 'Cookie banner', url:  '#', suffix: tooltip('Default translations already available in supported languges')},
-      {content: 'Filters', url:  '#'},
-      {content: 'Metaobjects', url:  '#'},
-      {content: 'Pages', url:  '#'},
-      {content: 'Policies', url:  '#'},
-      {content: 'Store metadata', url:  '#'},
+      {content: 'Blog posts', url: '/localize/article'},
+      {content: 'Blog titles', url:  '/localize/blog'},
+      // {content: 'Cookie banner', url:  '#', suffix: tooltip('Default translations already available in supported languges')},
+      // {content: 'Filters', url:  '#'},
+      // {content: 'Metaobjects', url:  '#'},
+      // {content: 'Pages', url:  '#'},
+      // {content: 'Policies', url:  '#'},
+      // {content: 'Store metadata', url:  '#'},
     ],
-  },
+  },/*
   {
     title: 'Content',
     items: [
@@ -45,7 +44,7 @@ export const sections = [
       {content: 'Notifications', url: '#'},
       {content: 'Shipping and delivery', url: '#'},
     ],
-  },
+  },*/
 ]
 
 export const guideData = [
@@ -97,6 +96,8 @@ export const resourceTypePath = {
   'PRODUCT_OPTION': 'product',
   'PRODUCT_OPTION_VALUE': 'product',
   'COLLECTION': 'collection',
+  'BLOG': 'blog',
+  'ARTICLE': 'article',
 }
 
 export const getResourceTypesPerSection = () => {

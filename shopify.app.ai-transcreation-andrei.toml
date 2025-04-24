@@ -3,7 +3,7 @@
 client_id = "12967b2878cb1061e5ea705aaaab9f68"
 name = "AI Transcreation Andrei"
 handle = "ai-transcreation-andrei"
-application_url = "https://composer-talked-opened-qualifying.trycloudflare.com"
+application_url = "https://citation-mf-sue-anne.trycloudflare.com"
 embedded = true
 
 [build]
@@ -18,9 +18,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://composer-talked-opened-qualifying.trycloudflare.com/auth/callback",
-  "https://composer-talked-opened-qualifying.trycloudflare.com/auth/shopify/callback",
-  "https://composer-talked-opened-qualifying.trycloudflare.com/api/auth/callback"
+  "https://citation-mf-sue-anne.trycloudflare.com/auth/callback",
+  "https://citation-mf-sue-anne.trycloudflare.com/auth/shopify/callback",
+  "https://citation-mf-sue-anne.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

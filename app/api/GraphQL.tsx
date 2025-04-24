@@ -217,7 +217,7 @@ export async function getCollectionInfo(graphql, id:string) {
 
   const response = await graphql(`
   query getCollectionInfo {
-    collection(id:"gid://shopify/Collection/658602885455") {
+    collection(id:"${id}") {
       id
       handle
       title
@@ -265,6 +265,135 @@ export async function getCollections(graphql, cursor?:string, limit:number = 12)
   } = await response.json();
 
   return {collections, total: collectionsCount.count};
+}
+
+export async function getBlogInfo(graphql, id:string) {
+
+  const response = await graphql(`
+  query getBlogInfo {
+    blog(id:"${id}") {
+      id
+      handle
+      title
+    }
+  }`);
+ 
+  const {
+    data: { blog },
+  } = await response.json();
+
+  return blog;
+}
+
+export async function getBlogs(graphql, cursor?:string, limit:number = 12) {
+
+  const start = cursor ? `,after:"${cursor}"` : '';
+
+  const response = await graphql(`
+  query getBlogs {
+    blogsCount {
+      count
+    }
+    blogs(first: ${limit} ${start}) {
+      nodes {
+        id
+        title
+        handle
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        endCursor
+      }
+    }
+  }`);
+ 
+  const {
+    data: { blogs, blogsCount },
+  } = await response.json();
+
+  return {blogs, total: blogsCount.count};
+}
+
+export async function getArticleInfo(graphql, id:string) {
+
+  const response = await graphql(`
+  query getArticleInfo {
+    article(id:"${id}") {
+      id
+      handle
+      title
+      image {
+        url
+      }
+    }
+  }`);
+ 
+  const {
+    data: { blog },
+  } = await response.json();
+
+  return blog;
+}
+
+
+export async function getArticlesTotal(graphql) {
+
+  const response = await graphql(`
+  query getArticlesTotal {
+    blogs(first: 250) {
+      nodes {
+        id
+        title
+        handle
+        articlesCount {
+          count
+        }
+      }
+    }
+  }`);
+ 
+  const {
+    data: { blogs : { nodes } },
+  } = await response.json();
+
+  const total = nodes.reduce((accumulator, item) => accumulator + item.articlesCount.count, 0);
+
+  return total;
+}
+
+export async function getArticles(graphql, cursor?:string, limit:number = 12, status:string = '') {
+  
+  const first = `first: ${limit}`;
+  const start = cursor ? `after:"${cursor}"` : '';
+  const search = `query:"${status ? 'published_status:' + status : ''}"`;
+  const params = [first, start, search].filter((x) => x != '').join(',');
+
+  const response = await graphql(`
+  query getArticles {
+    
+    articles(${params}) {
+      nodes {
+        id
+        handle
+        title
+        image {
+          url
+        }
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        endCursor
+      }
+    }
+  }`);
+ 
+  const {
+    data: { articles },
+  } = await response.json();
+
+  return {articles, total: 0};
 }
 
 export async function getTranslatableIds(graphql, resourceType:string, cursor:string) {
