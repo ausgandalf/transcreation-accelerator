@@ -78,7 +78,7 @@ export async function getShopMarkets(graphql, isHook = false) {
     id: x.id,
     handle: x.handle,
     name: x.name,
-    locales: x.webPresences.nodes[0].rootUrls, // ??? is this always existing here???
+    // locales: x?.webPresences.nodes[0].rootUrls, // ??? is this always existing here???
   }));
 }
 
@@ -394,6 +394,58 @@ export async function getArticles(graphql, cursor?:string, limit:number = 12, st
   } = await response.json();
 
   return {articles, total: 0};
+}
+
+
+export async function getPageInfo(graphql, id:string) {
+
+  const response = await graphql(`
+  query getPageInfo {
+    page(id:"${id}") {
+      id
+      handle
+      title
+    }
+  }`);
+ 
+  const {
+    data: { page },
+  } = await response.json();
+
+  return page;
+}
+
+export async function getPages(graphql, cursor?:string, limit:number = 12, status:string = '') {
+  
+  const first = `first: ${limit}`;
+  const start = cursor ? `after:"${cursor}"` : '';
+  const search = `query:"${status ? 'published_status:' + status : ''}"`;
+  const params = [first, start, search].filter((x) => x != '').join(',');
+  
+  const response = await graphql(`
+  query getPages {
+    pagesCount {
+      count
+    }
+    pages(${params}) {
+      nodes {
+        id
+        handle
+        title
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        endCursor
+      }
+    }
+  }`);
+ 
+  const {
+    data: { pages, pagesCount },
+  } = await response.json();
+
+  return {pages, total: pagesCount.count};
 }
 
 export async function getTranslatableIds(graphql, resourceType:string, cursor:string) {

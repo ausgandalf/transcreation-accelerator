@@ -76,13 +76,19 @@ export const Translations = {
   },
 
   getTitle : async (shop: string, resourceId: string) => {
-    
-    const row = await db.translations.findFirst({
+    // Let's try to find 'title' key
+    let row = await db.translations.findFirst({
       where: { shop, resourceId, field: 'title'},
     });
     
     if (!row) {
-      return '';
+      // Let's try to find 'label' key
+      row = await db.translations.findFirst({
+        where: { shop, resourceId, field: 'label'},
+      });
+      if (!row) {
+        return '';
+      }
     }
     
     return row.content;

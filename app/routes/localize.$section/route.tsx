@@ -90,6 +90,7 @@ import { ResourcePanel as ProductsPanel } from "./products";
 import { ResourcePanel as CollectionsPanel } from "./collections";
 import { ResourcePanel as BlogsPanel } from "./blogs";
 import { ResourcePanel as ArticlesPanel } from "./articles";
+import { ResourcePanel as PagesPanel } from "./pages";
 
 import { SearchPanel } from "./search";
 
@@ -178,17 +179,8 @@ export default function App() {
   const [searchKey, setSearchKey] = useState("");
 
   const [searchParams, setSearchParams] = useSearchParams();
-
-  // const nav = useNavigation();
-  // const isSaving =
-  //   nav.state === "submitting" && nav.formData?.get("action") !== "save";
-  // const isDeleting =
-  //   nav.state === "submitting" && nav.formData?.get("action") === "delete";
-
-  // useEffect(() => {
-  //   console.log(nav);
-  //   setIsLoading(nav.state === "loading");
-  // }, [nav])
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
 
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
@@ -303,7 +295,12 @@ export default function App() {
     return transObj;
   };
 
-  const updateTranslation = (id: string, key: string, translation: string, skipStatusUpdate = false) => {
+  const updateTranslation = (
+    id: string,
+    key: string,
+    translation: string,
+    skipStatusUpdate = false,
+  ) => {
     try {
       // let transObj = getTransSourceObj(transData[id], key);
       let transObj = { ...transDataObject[id][key] };
@@ -319,16 +316,16 @@ export default function App() {
         id: id,
         traslation: transObj,
       });
-      
+
       // Update status from "confirmed" to "needs attention" when manually edited
       // Skip this when loading from saved data or when specifically requested
       if (!skipStatusUpdate) {
         const translationKey = `${id}-${key}`;
-        
+
         // Only change status if currently confirmed and value is different from clean state
         if (translationStatus[translationKey] === "confirmed") {
           const cleanValue = cleanFormState[id]?.[key]?.value || "";
-          
+
           // If the value has changed from what was saved, mark it as needing attention
           if (translation !== cleanValue) {
             setTranslationStatus((prev) => ({
@@ -357,6 +354,7 @@ export default function App() {
 
   const submitTranslations = () => {
     var translations = [];
+    var transOrigin = structuredClone(transDataObject);
 
     for (var id in formState) {
       let trans = [];
@@ -367,6 +365,8 @@ export default function App() {
           JSON.stringify(cleanFormState[id][key])
         ) {
           trans.push(formState[id][key]);
+        } else {
+          delete transOrigin[id][key];
         }
       }
       translations.push({
@@ -379,6 +379,7 @@ export default function App() {
     setIsSaving(true);
     const data = {
       translations: JSON.stringify(translations),
+      origin: JSON.stringify(transOrigin),
       id: selectedResource.id,
       market: currentMarket.id,
       marketLabel: currentMarket.name,
@@ -399,6 +400,7 @@ export default function App() {
         'collection_read',
         'blog_read',
         'article_read',
+        'page_read',
       ];
 
       if (resourceReadActions.includes(fetcher.data.action)) {
@@ -582,6 +584,7 @@ export default function App() {
       'collection',
       'blog',
       'article',
+      'page',
     ];
 
     if (availablePathes.includes(item._path)) {
@@ -683,6 +686,9 @@ export default function App() {
 
       setCleanFormState(structuredClone(formState));
       setIsSaving(false);
+      setIsBulkSaving(false);
+      // Clear all checked items
+      setCheckedItems(new Set());
       shopify.toast.show("The translations have been saved.", {
         duration: 2000,
       });
@@ -830,6 +836,12 @@ export default function App() {
                 path: '/articles/' + resource.id.split("/").pop(),
                 newContext: true,
               });
+            } else if (_path == "page") {
+              // TODO
+              getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
+                path: '/pages/' + resource.id.split("/").pop(),
+                newContext: true,
+              });
             }
           }}
         >
@@ -935,7 +947,28 @@ export default function App() {
                         }
                       >
                         <InlineStack gap="200" align="start" blockAlign="start">
-                          <Checkbox label="" />
+                          <div
+                            style={renderDisabledCheckboxStyles(
+                              productInfoIds.id,
+                              x.key,
+                            )}
+                          >
+                            <Checkbox
+                              label=""
+                              checked={checkedItems.has(
+                                `${productInfoIds.id}-${x.key}`,
+                              )}
+                              onChange={() =>
+                                toggleItemCheck(productInfoIds.id, x.key)
+                              }
+                              disabled={
+                                !getTranslatedValue(
+                                  productInfoIds.id,
+                                  x.key,
+                                ).trim()
+                              }
+                            />
+                          </div>
                           <BlockStack gap="100">
                             <Text as="p" variant="headingSm">
                               {getKeyLabel(x.key)}
@@ -1042,7 +1075,18 @@ export default function App() {
                         }
                       >
                         <InlineStack gap="200" align="start" blockAlign="start">
-                          <Checkbox label="" />
+                          <div
+                            style={renderDisabledCheckboxStyles(x.id, "name")}
+                          >
+                            <Checkbox
+                              label=""
+                              checked={checkedItems.has(`${x.id}-name`)}
+                              onChange={() => toggleItemCheck(x.id, "name")}
+                              disabled={
+                                !getTranslatedValue(x.id, "name").trim()
+                              }
+                            />
+                          </div>
                           <BlockStack gap="100">
                             <Text as="p" variant="headingSm">
                               Option name
@@ -1096,7 +1140,14 @@ export default function App() {
                               align="start"
                               blockAlign="start"
                             >
-                              <Checkbox label="" />
+                              <Checkbox
+                                label=""
+                                checked={checkedItems.has(`${ov.id}-name`)}
+                                onChange={() => toggleItemCheck(ov.id, "name")}
+                                disabled={
+                                  !getTranslatedValue(ov.id, "name").trim()
+                                }
+                              />
                               <BlockStack gap="100">
                                 <Text as="p" variant="headingSm">
                                   {x.name}
@@ -1158,7 +1209,7 @@ export default function App() {
           </BlockStack>
         )}
 
-        {['collection', 'blog', 'article'].includes(path) && (
+        {['collection', 'blog', 'article', 'page'].includes(path) && (
           <BlockStack gap="400">
             <Card padding="0">
               <table
@@ -1214,8 +1265,6 @@ export default function App() {
                 <tbody>
                   {transData[resourceInfo.id] &&
                     transData[resourceInfo.id].map((x, i) => (
-
-                      
                       <tr key={"transmain-tr--" + i}>
                         <td
                           width="15%"
@@ -1229,7 +1278,21 @@ export default function App() {
                             align="start"
                             blockAlign="start"
                           >
-                            <Checkbox label="" />
+                            <Checkbox
+                              label=""
+                              checked={checkedItems.has(
+                                `${resourceInfo.id}-${x.key}`,
+                              )}
+                              onChange={() =>
+                                toggleItemCheck(resourceInfo.id, x.key)
+                              }
+                              disabled={
+                                !getTranslatedValue(
+                                  resourceInfo.id,
+                                  x.key,
+                                ).trim()
+                              }
+                            />
                             <BlockStack gap="100">
                               <Text as="p" variant="headingSm">
                                 {getKeyLabel(x.key)}
@@ -1261,7 +1324,9 @@ export default function App() {
                         <td style={cellStyle}>
                           <Text as="p">Apr 1, 2025 - 11:28</Text>
                         </td>
-                        <td style={cellStyle}>{renderStatus(resourceInfo.id, x.key)}</td>
+                        <td style={cellStyle}>
+                          {renderStatus(resourceInfo.id, x.key)}
+                        </td>
                         <td style={cellStyle}>
                           {renderActionButtons(resourceInfo.id, x.key)}
                         </td>
@@ -1362,6 +1427,7 @@ export default function App() {
 
   // Update handleTranslationApproval
   const handleTranslationApproval = async (id: string, key: string) => {
+
     const lastSavedValue = cleanFormState[id]?.[key]?.value || "";
     console.log("Storing last saved value:", lastSavedValue);
 
@@ -1377,13 +1443,20 @@ export default function App() {
 
     const translation = {
       id,
+      type: transIdTypes[id] ? transIdTypes[id] : "",
       data: [formState[id][key]],
     };
 
     const data = {
       translations: JSON.stringify([translation]),
+      origin: JSON.stringify({
+        [id]: {
+          [key]: transDataObject[id][key]
+        }
+      }),
       id: selectedResource.id,
       market: currentMarket.id,
+      marketLabel: currentMarket.name,
       locale: currentLocale.locale,
       action: "trans_submit",
     };
@@ -1594,10 +1667,11 @@ export default function App() {
     const info = getTranslationInfo(id, key);
     const isTranslating = translatingItems[`${id}-${key}`] === true;
     const translationKey = `${id}-${key}`;
-    
+
     // Check if this is a confirmed field that has been edited
-    const isEdited = info.status === "confirmed" && 
-      cleanFormState[id]?.[key]?.value !== undefined && 
+    const isEdited =
+      info.status === "confirmed" &&
+      cleanFormState[id]?.[key]?.value !== undefined &&
       cleanFormState[id][key].value !== info.current;
 
     if (isTranslating) {
@@ -1643,10 +1717,11 @@ export default function App() {
     const hasChanges = info.current !== info.original;
     const needsAttention = info.status === "needs_attention";
     const hasTranslation = info.current.trim() !== "";
-    
+
     // Check if this is a confirmed field that has been edited
-    const isEdited = info.status === "confirmed" && 
-      cleanFormState[id]?.[key]?.value !== undefined && 
+    const isEdited =
+      info.status === "confirmed" &&
+      cleanFormState[id]?.[key]?.value !== undefined &&
       cleanFormState[id][key].value !== info.current;
 
     const isConfirmed = info.status === "confirmed" && !isEdited;
@@ -1654,7 +1729,10 @@ export default function App() {
     const isTranslating = translatingItems[`${id}-${key}`] === true;
 
     const canSave =
-      hasChanges || needsAttention || (hasTranslation && !info.status) || isEdited;
+      hasChanges ||
+      needsAttention ||
+      (hasTranslation && !info.status) ||
+      isEdited;
 
     return (
       <ButtonGroup>
@@ -1687,6 +1765,128 @@ export default function App() {
         )}
       </ButtonGroup>
     );
+  };
+
+  const toggleItemCheck = (id: string, key: string) => {
+    const itemKey = `${id}-${key}`;
+    const value = getTranslatedValue(id, key);
+
+    // Don't allow checking items with empty translations
+    if (!value.trim()) {
+      return;
+    }
+
+    setCheckedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemKey)) {
+        newSet.delete(itemKey);
+      } else {
+        newSet.add(itemKey);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllItems = (section: string) => {
+    const newCheckedItems = new Set<string>();
+
+    // For product section
+    if (section === "product" && productInfoIds?.id) {
+      // Add main product translations
+      if (transData[productInfoIds.id]) {
+        transData[productInfoIds.id].forEach((item) => {
+          newCheckedItems.add(`${productInfoIds.id}-${item.key}`);
+        });
+      }
+    }
+
+    // For product options section
+    if (section === "product_options" && productInfoIds?.options) {
+      productInfoIds.options.forEach((option) => {
+        if (transData[option.id]) {
+          newCheckedItems.add(`${option.id}-name`);
+        }
+
+        option.optionValues.forEach((value) => {
+          if (transData[value.id]) {
+            newCheckedItems.add(`${value.id}-name`);
+          }
+        });
+      });
+    }
+
+    // For collection section
+    if (section === "collection" && resourceInfo?.id) {
+      if (transData[resourceInfo.id]) {
+        transData[resourceInfo.id].forEach((item) => {
+          newCheckedItems.add(`${resourceInfo.id}-${item.key}`);
+        });
+      }
+    }
+
+    setCheckedItems(newCheckedItems);
+  };
+
+  const clearSelections = () => {
+    setCheckedItems(new Set());
+  };
+
+  const handleBulkSave = async () => {
+    if (checkedItems.size === 0) return;
+
+    setIsBulkSaving(true);
+
+    // Collect all translations to save
+    const translationsToSave = [];
+    const transOrigin = {};
+
+    checkedItems.forEach((itemKey) => {
+      const [id, key] = itemKey.split("-");
+
+      // Store the last saved value for potential undo
+      const lastSavedValue = cleanFormState[id]?.[key]?.value || "";
+      setPreSaveValues((prev) => ({
+        ...prev,
+        [itemKey]: lastSavedValue,
+      }));
+
+      // Mark as saving
+      setSavingItems((prev) => ({
+        ...prev,
+        [itemKey]: true,
+      }));
+
+      // Only add to bulk save if we have a valid form state for this item
+      if (formState[id] && formState[id][key]) {
+        translationsToSave.push({
+          id,
+          type: transIdTypes[id] ? transIdTypes[id] : "",
+          data: [formState[id][key]],
+        });
+        transOrigin[id] = structuredClone(transDataObject[id]);
+      }
+    });
+
+    // Submit translations in bulk
+    const data = {
+      translations: JSON.stringify(translationsToSave),
+      origin: transOrigin,
+      id: selectedResource.id,
+      market: currentMarket.id,
+      marketLabel: currentMarket.name,
+      locale: currentLocale.locale,
+      action: "trans_submit",
+    };
+
+    fetcher.submit(data, { action: "/api", method: "post" });
+
+    // Clear checked items after submitting
+    setCheckedItems(new Set());
+  };
+
+  const renderDisabledCheckboxStyles = (id: string, key: string) => {
+    const hasTranslation = getTranslatedValue(id, key).trim() !== "";
+    return hasTranslation ? {} : { opacity: 0.5, cursor: "not-allowed" };
   };
 
   return (
@@ -1819,6 +2019,14 @@ export default function App() {
                     visible={!isSearchVisible}
                   />
                 )}
+                {section == "page" && (
+                  <PagesPanel
+                    onSelect={selectResource}
+                    selected={selectedResource}
+                    section={section}
+                    visible={!isSearchVisible}
+                  />
+                )}
                 
                 <SearchPanel
                   q={searchKey}
@@ -1849,13 +2057,24 @@ export default function App() {
                           >
                             {renderSelectedResourceHeadline(selectedResource)}
                             <Box>
-                              <Button
-                                variant="secondary"
-                                onClick={handleTranslation}
-                                loading={isTranslating}
-                              >
-                                Auto-translate
-                              </Button>
+                              <ButtonGroup>
+                                <Button
+                                  variant="secondary"
+                                  onClick={handleTranslation}
+                                  loading={isTranslating}
+                                >
+                                  Auto-translate
+                                </Button>
+                                {checkedItems.size > 0 && (
+                                  <Button
+                                    variant="primary"
+                                    onClick={handleBulkSave}
+                                    loading={isBulkSaving}
+                                  >
+                                    Save {checkedItems.size} selected
+                                  </Button>
+                                )}
+                              </ButtonGroup>
                             </Box>
                           </InlineStack>
 

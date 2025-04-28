@@ -15,6 +15,7 @@ import {
   getCollections,
   getBlogs,
   getArticles,
+  getPages,
   getArticlesTotal,
   getTranslationsByIds, 
   setTranslations, 
@@ -190,6 +191,35 @@ export async function action({ request, params }) {
     result['idTypes'] = {[data.id]:'ARTICLE'};
     result['resource'] = {id: data.id};
     
+  } else if (data.action == 'page_list') {
+    // Load blog list
+    let endLoop = 0;
+    while (endLoop < 10) {
+      try {
+        endLoop++;
+        result = await getPages(admin.graphql, data.cursor, data.perPage, data.status);
+        endLoop = 10;
+      } catch (e) {
+        // console.log(e);
+      }
+    }
+
+  } else if (data.action == 'page_read') {
+    
+    const ids = [data.id];
+
+    // Load Translation data
+    let endLoop = 0; // We fetch translation data only when product is found.
+    while (endLoop < 10) {
+      try {
+        endLoop++;
+        result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
+        endLoop = 10;
+      } catch (e) {}
+    }
+    result['idTypes'] = {[data.id]:'PAGE'};
+    result['resource'] = {id: data.id};
+    
   } else if (data.action == 'trans_read') {
     // Load Product info
     const ids = JSON.parse(data.ids);
@@ -206,6 +236,8 @@ export async function action({ request, params }) {
   } else if (data.action == 'trans_submit') {
     // Load Translation data
     const translationsObj = JSON.parse(data.translations);
+    const originObj = JSON.parse(data.origin);
+
     let results = [...Array(translationsObj.length)];
     let dataset:TranslationRow[] = []; // To save into DB for search function
 
@@ -224,14 +256,17 @@ export async function action({ request, params }) {
           setData.push(translationsObj[i].data[j]);
         }
 
+        const fieldValue = translationsObj[i].data[j].key;
+
         dataset.push({
           shop,
           resourceType: translationsObj[i].type,
           resourceId: translationsObj[i].id.split('/').pop(),
           parentId: data.id.split('/').pop(),
-          field: translationsObj[i].data[j].key,
+          field: fieldValue,
           locale: data.locale,
           market: data.marketLabel,
+          content: originObj[data.id][fieldValue]['value'],
           translation: translationsObj[i].data[j].value,
           updatedAt: new Date().toISOString(),
         });
@@ -412,7 +447,8 @@ export async function action({ request, params }) {
     // console.log('trans-refined:', refined);
 
     for (let key in refined) {
-      // Get resource info via GraphQL, but do we need to do this???
+      // Get resource info via GraphQL, 
+      // (-- but let's skip to reduce GraphQL api interaction..., instead, we will get the title from DB --)
       // refined[key].info = await getResourceInfo(admin.graphql, key, refined[key]._path);
 
       // Get the title from DB, to reduce GraphQL usage rate
@@ -468,7 +504,7 @@ export async function action({ request, params }) {
   } else if (data.action == 'sync_process') {
     // Load product list
     const forceRestart = (data.force == '1');
-    const jobs = ['PRODUCT', 'COLLECTION', 'BLOG', 'ARTICLE'];
+    const jobs = ['PRODUCT', 'COLLECTION', 'BLOG', 'ARTICLE', 'PAGE'];
 
     let hasNext = false;
     for (let i=0; i<jobs.length; i++) {

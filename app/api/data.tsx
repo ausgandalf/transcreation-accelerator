@@ -16,7 +16,7 @@ export const sections = [
       // {content: 'Cookie banner', url:  '#', suffix: tooltip('Default translations already available in supported languges')},
       // {content: 'Filters', url:  '#'},
       // {content: 'Metaobjects', url:  '#'},
-      // {content: 'Pages', url:  '#'},
+      {content: 'Pages', url:  '/localize/page'},
       // {content: 'Policies', url:  '#'},
       // {content: 'Store metadata', url:  '#'},
     ],
@@ -98,6 +98,7 @@ export const resourceTypePath = {
   'COLLECTION': 'collection',
   'BLOG': 'blog',
   'ARTICLE': 'article',
+  'PAGE': 'page',
 }
 
 export const getResourceTypesPerSection = () => {
