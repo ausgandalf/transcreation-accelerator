@@ -135,10 +135,10 @@ export default function App() {
                 setIsLoading(true);
                 navigate(`/?shopLocale=${x.locale}`);
                 
-                // getRedirect(shopify).dispatch(
-                //   Redirect.Action.APP,
-                //   `/?shopLocale=${x.locale}`,
-                // )
+                getRedirect(shopify).dispatch(
+                  Redirect.Action.APP,
+                  `/?shopLocale=${x.locale}`,
+                )
                   
               }
             }
@@ -195,13 +195,13 @@ export default function App() {
               <Button 
                 // disabled={shop && (shop != '') ? false : true} 
                 onClick={() => {
-                  getRedirect(shopify).dispatch(
-                    Redirect.Action.REMOTE,
-                    {
-                      url: `https://${shop}`,
-                      newContext: true,
-                    }
-                  )
+                  // getRedirect(shopify).dispatch(
+                  //   Redirect.Action.REMOTE,
+                  //   {
+                  //     url: `https://${shop}`,
+                  //     newContext: true,
+                  //   }
+                  // )
                 }}
               >View store</Button>
             </InlineStack>
@@ -283,9 +283,11 @@ export default function App() {
             </Layout.Section>
             
           </Layout>
-          <GuideModal steps={guideData} />
         </Page>
       )}
+
+      <GuideModal steps={guideData} />
+
     </AppProvider>
   );
 }

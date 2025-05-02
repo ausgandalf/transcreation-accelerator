@@ -1,9 +1,19 @@
-import { getShopLocales, getShopMarkets, getProduct, getCollectionInfo, getTranslationsByIds } from "app/api/GraphQL";
 import { TranslationRow, Translations } from "app/models/Translations";
 import { SyncTranslationsRow, SyncProcessRow, Sync } from "app/models/Sync";
-import { getTranslatableIds } from "app/api/GraphQL";
 import { getIDBySection } from "app/components/Functions";
 import { resourceTypePath } from "./data";
+
+import { 
+  getShopLocales, 
+  getShopMarkets, 
+  getProduct, 
+  getProductInfo,
+  getCollectionInfo,
+  getBlogInfo,
+  getArticleInfo,
+  getTranslatableIds,
+  getTranslationsByIds,
+} from 'app/api/GraphQL';
 
 export async function doSyncProcess(graphql, shop:string, resourceType:string, forceRestart:boolean = false):boolean { 
   let cursor:string = '';
@@ -21,7 +31,7 @@ export async function doSyncProcess(graphql, shop:string, resourceType:string, f
   while (endLoop < 10) {
     try {
       endLoop ++;
-      ids = await getTranslatableIds(graphql, resourceType, cursor);
+      ids = await getTranslatableIds(graphql, resourceType, cursor, 10);
       endLoop = 10;
     } catch (e) {}
   }
@@ -413,4 +423,49 @@ export const syncOtherTranslations = async (shop:string, admin:any, idValue:any,
     }
   }
 
+}
+
+export async function getResourceInfo (shop: string, graphql, id:string, path?:string) {
+  let endLoop = 0;
+  let info = {
+    id: '',
+    title: '',
+    _path: path,
+  };
+
+  while (endLoop < 10) {
+    try {
+      endLoop++;
+      if (path == 'product') {
+        info = await getProductInfo(graphql, id);
+      } else if (path == 'collection') {
+        info = await getCollectionInfo(graphql, id);
+      } else if (path == 'blog') {
+        info = await getBlogInfo(graphql, id);
+      } else if (path == 'article') {
+        info = await getArticleInfo(graphql, id);
+      } else {
+        info = await getResourceInfoFromDB(shop, id, path);
+      }
+      endLoop = 10;
+    } catch (e) {}
+  }
+
+  info = {...info, _path:path};
+
+  return info;
+}
+
+export async function getResourceInfoFromDB(shop: string, shopifyId: string, path: string) {
+  const resource = {
+    id: shopifyId,
+    title: await Translations.getTitle(shop, shopifyId.split('/').pop())
+  };
+  
+  if (resource.title == '') {
+    if (path == 'policy') {
+      resource.title = 'Privacy Policy';
+    }
+  }
+  return resource;
 }

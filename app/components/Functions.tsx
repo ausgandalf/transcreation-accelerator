@@ -93,11 +93,15 @@ export const tooltip = (tip: string) => {
   return <Tooltip content={tip}><Icon source={QuestionCircleIcon} /></Tooltip>
 }
 
-export const makeReadable = (text:string|undefined) => {
+export const makeReadable = (text:string|undefined, isTitleCase = true) => {
   if (typeof text == 'undefined') text = '';
-  return text.replaceAll('_', ' ').split('_')
+  text = text.replace(/[+_-]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (isTitleCase) {
+    text = text.split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+  }
+  return text;
 }
 
 export const isSaveBarOpen = (id:string = 'translation-save-bar') => {
@@ -167,14 +171,26 @@ export function getIDBySection(id?:string|null, section?:string) {
   if (!id) return '';
 
   switch (section) {
-    case 'product':
-      idv = `gid://shopify/Product/${id}`;
+    case 'filter':
+      idv = `gid://shopify/OnlineStoreFilterSetting/${id}`;
       break;
-    case 'collection':
-      idv = `gid://shopify/Collection/${id}`;
+    case 'policy':
+      idv = `gid://shopify/ShopPolicy/${id}`;
+      break;
+    case 'theme':
+      idv = `gid://shopify/OnlineStoreThemeSettingsCategory/${id}`;
+      break;
+    case 'template':
+      idv = `gid://shopify/OnlineStoreThemeJsonTemplate/${id}`;
+      break;
+    case 'static':
+      idv = `gid://shopify/OnlineStoreThemeSettingsDataSections/${id}`;
+      break;
+    case 'section':
+      idv = `gid://shopify/OnlineStoreThemeSectionGroup/${id}`;
       break;
     default: 
-      idv = `gid://shopify/${makeReadable(section)}/${id}`; // Should we??
+      idv = `gid://shopify/${makeReadable(section)}/${id}`; // Should we?? yeah!!!
   }
   return idv;
 }
@@ -183,28 +199,37 @@ export function extractId(id:string) {
   return id.split('/').pop();
 }
 
-export async function getResourceInfo (graphql, id:string, path?:string) {
-  let endLoop = 0;
-  let info = {
-    id: '',
-    title: '',
-  };
 
-  while (endLoop < 10) {
-    try {
-      endLoop++;
-      if (path == 'product') {
-        info = await getProductInfo(graphql, id);
-      } else if (path == 'collection') {
-        info = await getCollectionInfo(graphql, id);
-      } else if (path == 'blog') {
-        info = await getBlogInfo(graphql, id);
-      } else if (path == 'article') {
-        info = await getArticleInfo(graphql, id);
+export function getResourceItemLabel(resourceId:string, type: string, translatableContent:[]) {
+  let label = '';
+  if (type == 'SHOP_POLICY') {
+    label = 'Privacy Policy';
+  } else if ([
+    'ONLINE_STORE_THEME_JSON_TEMPLATE', 
+    'ONLINE_STORE_THEME_SETTINGS_CATEGORY',
+    'ONLINE_STORE_THEME_SECTION_GROUP',
+    'ONLINE_STORE_THEME_SETTINGS_DATA_SECTIONS',
+  ].includes(type)) {
+    label = resourceId.split('/').pop();
+    label = makeReadable(label.split('?')[0]);
+  } else {
+    let firstLabel = '';
+    translatableContent.some((x) => {
+      if (firstLabel == '') firstLabel = x.value;
+      if (x.key == 'label' || x.key == 'title') {
+        label = x.value;
+        return true;
       }
-      endLoop = 10;
-    } catch (e) {}
+    });
+
+    if (label == '') {
+      label = firstLabel;
+    }
   }
 
-  return info;
+  if (label == '') {
+    label = makeReadable(type) + ' Item';
+  }
+
+  return label;
 }

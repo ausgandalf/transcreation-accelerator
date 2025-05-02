@@ -44,7 +44,6 @@ export const GuideModal = (props: GuideModalProps) => {
   const { step, steps, update } = props;
 
   const [page, setPage] = useState(step);
-  const [isOpen, setIsOpen] = useState(open);
 
   const nextPage = () => {
     const newPage = Math.min(steps.length, page + 1);

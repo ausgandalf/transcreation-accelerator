@@ -3,7 +3,7 @@
 client_id = "12967b2878cb1061e5ea705aaaab9f68"
 name = "AI Transcreation Andrei"
 handle = "ai-transcreation-andrei"
-application_url = "https://simple-structured-unlimited-strengthening.trycloudflare.com"
+application_url = "https://prove-infection-literature-mon.trycloudflare.com"
 embedded = true
 
 [build]
@@ -18,9 +18,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://simple-structured-unlimited-strengthening.trycloudflare.com/auth/callback",
-  "https://simple-structured-unlimited-strengthening.trycloudflare.com/auth/shopify/callback",
-  "https://simple-structured-unlimited-strengthening.trycloudflare.com/api/auth/callback"
+  "https://prove-infection-literature-mon.trycloudflare.com/auth/callback",
+  "https://prove-infection-literature-mon.trycloudflare.com/auth/shopify/callback",
+  "https://prove-infection-literature-mon.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

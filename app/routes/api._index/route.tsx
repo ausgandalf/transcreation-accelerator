@@ -4,7 +4,7 @@ import { TranslationRow, Translations } from "app/models/Translations";
 import { SyncTranslationsRow, SyncProcessRow, Sync } from "app/models/Sync";
 import { syncProductTranslations, syncCollectionTranslations, syncOtherTranslations, doSyncProcess } from "app/api/Actions";
 import { resourceTypePath } from "app/api/data";
-import { getIDBySection } from "app/components/Functions";
+import { getIDBySection, makeReadable, getResourceItemLabel } from "app/components/Functions";
 
 import { 
   getProducts, 
@@ -27,7 +27,10 @@ import {
   getTranslatableIds,
 } from 'app/api/GraphQL';
 
-import { sleep, getResourceInfo } from "app/components/Functions";
+import { sleep } from "app/components/Functions";
+import { getResourceInfo, getResourceInfoFromDB } from "app/api/Actions";
+
+import { getResourceTypesPerSection, commonReadActions, syncTypes } from "app/api/data";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 
@@ -105,6 +108,24 @@ export async function action({ request, params }) {
     // result['product'] = product; // Put product info
     result['resource'] = product; // Put product info
     
+  } else if (Object.keys(commonReadActions).includes(data.action)) {
+    // Read translation by id per type
+    const ids = [data.id];
+
+    // Load Translation data
+    let endLoop = 0; // We fetch translation data only when product is found.
+    while (endLoop < 10) {
+      try {
+        endLoop++;
+        result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
+        endLoop = 10;
+      } catch (e) {}
+    }
+    result['idTypes'] = {
+      [data.id] : commonReadActions[data.action]
+    };
+    result['resource'] = {id: data.id};
+    
   } else if (data.action == 'collection_list') {
     // Load collection list
     let endLoop = false;
@@ -114,22 +135,6 @@ export async function action({ request, params }) {
         endLoop = true;
       } catch (e) {}
     }
-  } else if (data.action == 'collection_read') {
-    
-    const ids = [data.id];
-
-    // Load Translation data
-    let endLoop = 0; // We fetch translation data only when product is found.
-    while (endLoop < 10) {
-      try {
-        endLoop++;
-        result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
-        endLoop = 10;
-      } catch (e) {}
-    }
-    result['idTypes'] = {[data.id]:'COLLECTION'};
-    result['resource'] = {id: data.id};
-    
   } else if (data.action == 'blog_list') {
     // Load blog list
     let endLoop = false;
@@ -139,22 +144,6 @@ export async function action({ request, params }) {
         endLoop = true;
       } catch (e) {}
     }
-  } else if (data.action == 'blog_read') {
-    
-    const ids = [data.id];
-
-    // Load Translation data
-    let endLoop = 0; // We fetch translation data only when product is found.
-    while (endLoop < 10) {
-      try {
-        endLoop++;
-        result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
-        endLoop = 10;
-      } catch (e) {}
-    }
-    result['idTypes'] = {[data.id]:'BLOG'};
-    result['resource'] = {id: data.id};
-    
   } else if (data.action == 'article_list') {
     // Load blog list
     let endLoop = 0;
@@ -175,22 +164,6 @@ export async function action({ request, params }) {
       } catch (e) {}
     }
 
-  } else if (data.action == 'article_read') {
-    
-    const ids = [data.id];
-
-    // Load Translation data
-    let endLoop = 0; // We fetch translation data only when product is found.
-    while (endLoop < 10) {
-      try {
-        endLoop++;
-        result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
-        endLoop = 10;
-      } catch (e) {}
-    }
-    result['idTypes'] = {[data.id]:'ARTICLE'};
-    result['resource'] = {id: data.id};
-    
   } else if (data.action == 'page_list') {
     // Load blog list
     let endLoop = 0;
@@ -204,22 +177,35 @@ export async function action({ request, params }) {
       }
     }
 
-  } else if (data.action == 'page_read') {
-    
-    const ids = [data.id];
-
-    // Load Translation data
-    let endLoop = 0; // We fetch translation data only when product is found.
+  } else if (data.action == 'resource_list') {
+    // Load blog list
+    let resources;
+    let endLoop = 0;
     while (endLoop < 10) {
       try {
         endLoop++;
-        result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
+        resources = await getTranslatableIds(admin.graphql, data.type, data.cursor, data.perPage);
         endLoop = 10;
-      } catch (e) {}
+      } catch (e) {
+        // console.log(e);
+      }
     }
-    result['idTypes'] = {[data.id]:'PAGE'};
-    result['resource'] = {id: data.id};
-    
+
+    let list = [];
+    for (let i=0; i<resources.nodes.length; i++) {
+      const node = resources.nodes[i];
+
+      list.push({
+        id: node.resourceId,
+        title: getResourceItemLabel(node.resourceId, data.type, node.translatableContent)
+      });
+    }
+
+    result = {resources: {
+      pageInfo: resources.pageInfo,
+      nodes: list
+    }, total: list.length};
+
   } else if (data.action == 'trans_read') {
     // Load Product info
     const ids = JSON.parse(data.ids);
@@ -408,7 +394,7 @@ export async function action({ request, params }) {
     }
 
   } else if (data.action == 'trans_find') {
-
+    const resourceTypesDictionary = getResourceTypesPerSection();
     const resourceTypes = data.types ? data.types.split('|') : [];
     const locales = data.locales ? data.locales.split('|') : [];
     const q = data.q;
@@ -441,7 +427,7 @@ export async function action({ request, params }) {
           items: []
         };
       }
-      refined[objId].items.push({...x, parentId:objId, highlight:v, _path});
+      refined[objId].items.push({...x, parentId:objId, highlight:v, _path, key: x.field, value:x.content});
     });
 
     // console.log('trans-refined:', refined);
@@ -449,14 +435,13 @@ export async function action({ request, params }) {
     for (let key in refined) {
       // Get resource info via GraphQL, 
       // (-- but let's skip to reduce GraphQL api interaction..., instead, we will get the title from DB --)
-      // refined[key].info = await getResourceInfo(admin.graphql, key, refined[key]._path);
+      // refined[key].info = await getResourceInfo(shop, admin.graphql, key, refined[key]._path);
 
       // Get the title from DB, to reduce GraphQL usage rate
-      refined[key].info = {
-        id: key,
-        title: await Translations.getTitle(shop, key.split('/').pop())
+      refined[key].info = await getResourceInfoFromDB(shop, key);
+      if (refined[key].info.title == '') {
+        refined[key].info.title = getResourceItemLabel(key, resourceTypesDictionary[refined[key]._path][0], refined[key].items);
       }
-
     }
     // console.log('product-info-filled-up:', refined);
     result['result'] = {total, found: rows.length, result: refined};
@@ -504,7 +489,7 @@ export async function action({ request, params }) {
   } else if (data.action == 'sync_process') {
     // Load product list
     const forceRestart = (data.force == '1');
-    const jobs = ['PRODUCT', 'COLLECTION', 'BLOG', 'ARTICLE', 'PAGE'];
+    const jobs = [...syncTypes];
 
     let hasNext = false;
     for (let i=0; i<jobs.length; i++) {

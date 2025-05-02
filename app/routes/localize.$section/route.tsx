@@ -1,30 +1,15 @@
-import {
-  useState,
-  useEffect,
-  useReducer,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
+import { useState, useEffect, useReducer, useCallback, useRef } from "react";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { redirect } from "@remix-run/node";
 import {
   useOutletContext,
   useLoaderData,
   useNavigate,
-  useNavigation,
   useFetcher,
-  useActionData,
-  useSubmit,
   useSearchParams,
 } from "@remix-run/react";
-import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { Redirect, Fullscreen } from "@shopify/app-bridge/actions";
 import { useAppBridge, SaveBar } from "@shopify/app-bridge-react";
-
 import {
-  Page,
-  Layout,
   BlockStack,
   Box,
   Button,
@@ -34,10 +19,7 @@ import {
   InlineStack,
   Text,
   Badge,
-  Tooltip,
   FullscreenBar,
-  Pagination,
-  Divider,
   Thumbnail,
   TextField,
   Checkbox,
@@ -52,12 +34,9 @@ import {
   UndoIcon,
   XIcon,
 } from "@shopify/polaris-icons";
-
-import { authenticate, login } from "../../shopify.server";
-
+import { authenticate } from "../../shopify.server";
 import { LoadingScreen } from "app/components/LoadingScreen";
 import { SyncRunner } from "app/components/SyncRunner";
-
 import {
   extractId,
   getRedirect,
@@ -68,10 +47,10 @@ import {
   makeFullscreen,
   enterFullscreen,
   exitFullscreen,
-  getResourceInfo,
   sleep,
 } from "app/components/Functions";
-import { getProductInfo } from "app/api/GraphQL";
+import { getResourceInfo } from "app/api/Actions";
+import { getActiveThemeInfo, getProductInfo } from "app/api/GraphQL";
 import {
   thStyle,
   cellStyle,
@@ -82,25 +61,29 @@ import {
 } from "app/res/style";
 import {
   SkeletonLocalize,
-  SkeletonTranslation,
   SkeletonTranslationContent,
 } from "../../components/Skeletons";
-
 import { ResourcePanel as ProductsPanel } from "./products";
 import { ResourcePanel as CollectionsPanel } from "./collections";
 import { ResourcePanel as BlogsPanel } from "./blogs";
 import { ResourcePanel as ArticlesPanel } from "./articles";
 import { ResourcePanel as PagesPanel } from "./pages";
+import { ResourcePanel as ResourcesPanel } from "./resources";
 
 import { SearchPanel } from "./search";
 
-import { sections, transKeys } from "app/api/data";
+import { sections, transKeys, availablePathes, commonReadActions, readActions, emptyStateInfo } from "app/api/data";
 import { Editor } from "app/components/Editor";
 import { InsertImageModal } from "app/components/Editor--CKEditor--InsertImageModal";
-import { select } from "@shopify/app-bridge/actions/ResourcePicker";
+import {
+  updateTranslationState,
+  deleteTranslationState,
+  getTranslationStateByResourceId,
+} from "app/lib/translation-state-client";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
+  const { shop } = session;
   const url = new URL(request.url);
 
   const section = params.section;
@@ -110,7 +93,22 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   id = getIDBySection(id, section);
   if (id) {
     // Load resource info
-    selected = await getResourceInfo(admin.graphql, id, section);
+    selected = await getResourceInfo(shop, admin.graphql, id, section);
+  }
+
+  let theme = {
+    'rawId': '',
+    'id': '',
+    'name': '',
+    'prefix': '',
+    'themeStoreId': '',
+  }
+  let endLoop = false;
+  while (!endLoop) {
+    try {
+      theme = await getActiveThemeInfo(admin.graphql);
+      endLoop = true;
+    } catch (e) {}
   }
 
   return {
@@ -119,6 +117,8 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     resourceId: id,
     pathSection: section,
     selected,
+    shop,
+    theme,
   };
 };
 
@@ -139,7 +139,6 @@ export async function action({ request, params }) {
 export default function App() {
   const shopify = useAppBridge();
 
-  const intervalRef = useRef<NodeJS.Timeout>(0);
   const fullscreenRef = useRef<Fullscreen.Fullscreen>(0);
 
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
@@ -164,14 +163,13 @@ export default function App() {
 
   const navigate = useNavigate();
 
-  const { init, path, resourceId, pathSection, selected } =
+  const { init, path, resourceId, pathSection, selected, shop, theme } =
     useLoaderData<typeof loader>();
   // const actionData = useActionData<typeof action>();
   const [section, setSection] = useState(pathSection);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isResourceLoading, setIsResourceLoading] = useState(false);
   const [isTranslationLoading, setIsTranslationLoading] = useState(false);
   const [isTranslationLoaded, setIsTranslationLoaded] = useState(false);
 
@@ -212,15 +210,7 @@ export default function App() {
 
     setIsLoading(true);
     navigate(`/?shopLocale=${currentLocale.locale}`);
-
-    // getRedirect(shopify).dispatch(
-    //   Redirect.Action.APP,
-    //   `/?shopLocale=${currentLocale.locale}`,
-    // )
   }
-
-  ///////////////////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////////////////
 
   function formStateReducer(state, action) {
     // console.log('reducer....', state, action);
@@ -278,23 +268,6 @@ export default function App() {
     }
   }, [formState, cleanFormState]);
 
-  const getTransSourceObj = (resources: [], key: string) => {
-    let transObj = {};
-    const foundTransObj = resources.some((x) => {
-      if (x.key == key) {
-        transObj = { ...x };
-        return true;
-      }
-    });
-    if (!foundTransObj) {
-      // console.log(resources, key);
-      throw Error(
-        "Unknown translation key found in getTransSourceObj() funciton.",
-      );
-    }
-    return transObj;
-  };
-
   const updateTranslation = (
     id: string,
     key: string,
@@ -328,6 +301,7 @@ export default function App() {
 
           // If the value has changed from what was saved, mark it as needing attention
           if (translation !== cleanValue) {
+            // Update local state
             setTranslationStatus((prev) => ({
               ...prev,
               [translationKey]: null, // null status will make it show "Needs attention"
@@ -391,31 +365,21 @@ export default function App() {
   };
 
   useEffect(() => {
-    // console.log(fetcher);
     if (!fetcher.data) {
     } else {
       
-      const resourceReadActions = [
-        'product_read',
-        'collection_read',
-        'blog_read',
-        'article_read',
-        'page_read',
-      ];
-
-      if (resourceReadActions.includes(fetcher.data.action)) {
+      if (Object.keys(readActions).includes(fetcher.data.action)) {
         // TODO
         if (
           fetcher.data.transdata &&
           fetcher.data.resource.id == selectedResource.id
         ) {
-
-          if (fetcher.data.action == 'product_read') {
+          if (fetcher.data.action == "product_read") {
             setProductInfoIds({ ...fetcher.data.resource });
           } else {
             setResourceInfo({ ...fetcher.data.resource });
           }
-          
+
           setCurrentTranslateMarketLocale(
             fetcher.data.resource.id +
               "-" +
@@ -478,7 +442,19 @@ export default function App() {
             const resId = x.set.result.id;
             x.set.result.translations.map((y, j) => {
               newTransDataObj[resId][y.key]["updated"] = y.updatedAt;
-              updateTranslation(resId, y.key, y.value);
+              updateTranslation(resId, y.key, y.value, true);
+
+              // Update status to confirmed in local state
+              setTranslationStatus((prev) => ({
+                ...prev,
+                [`${resId}-${y.key}`]: "confirmed",
+              }));
+
+              // Clear saving state for this specific item
+              setSavingItems((prev) => ({
+                ...prev,
+                [`${resId}-${y.key}`]: false,
+              }));
             });
           }
         });
@@ -486,12 +462,15 @@ export default function App() {
 
         setCleanFormState(structuredClone(formState));
         setIsSaving(false);
+        setIsBulkSaving(false);
+        // Clear all checked items
+        setCheckedItems(new Set());
         shopify.toast.show("The translations have been saved.", {
           duration: 2000,
         });
       }
     }
-  }, [fetcher.data]);
+  }, [fetcher.data, shop, currentLocale, currentMarket]);
 
   useEffect(() => {
     if (selectedResource) {
@@ -579,14 +558,6 @@ export default function App() {
     setIsTranslationLoading(true);
     if (!("_path" in item)) item._path = section;
 
-    const availablePathes = [
-      'product',
-      'collection',
-      'blog',
-      'article',
-      'page',
-    ];
-
     if (availablePathes.includes(item._path)) {
       const data = {
         id: item.id,
@@ -598,8 +569,8 @@ export default function App() {
       // console.log('Read translation data...');
       fetcher.submit(data, { action: "/api", method: "post" });
     } else {
-      // 
-      console.log('path is not available.');
+      //
+      console.log("path is not available.");
     }
   };
 
@@ -658,43 +629,6 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    if (!fetcher.data) return;
-
-    if (fetcher.data.action === "trans_submit") {
-      fetcher.data.results.forEach((x) => {
-        if (x.set?.result) {
-          const resId = x.set.result.id;
-          x.set.result.translations.forEach((y) => {
-            // Update the translation
-            updateTranslation(resId, y.key, y.value, true);
-
-            // Update status to confirmed
-            setTranslationStatus((prev) => ({
-              ...prev,
-              [`${resId}-${y.key}`]: "confirmed",
-            }));
-
-            // Clear saving state for this specific item
-            setSavingItems((prev) => ({
-              ...prev,
-              [`${resId}-${y.key}`]: false,
-            }));
-          });
-        }
-      });
-
-      setCleanFormState(structuredClone(formState));
-      setIsSaving(false);
-      setIsBulkSaving(false);
-      // Clear all checked items
-      setCheckedItems(new Set());
-      shopify.toast.show("The translations have been saved.", {
-        duration: 2000,
-      });
-    }
-  }, [fetcher.data]);
-
   function getLanguageLabel(locale: string) {
     let label = "";
     context.locales.some((x, i) => {
@@ -710,12 +644,19 @@ export default function App() {
     if (key in transKeys) {
       return transKeys[key].label;
     } else {
-      return makeReadable(key);
+      let refinedLabel:any = '';
+      if (['template', 'theme', 'static', 'section'].includes(section)) {
+        refinedLabel = key.split('.').pop();
+        refinedLabel = refinedLabel ? refinedLabel.split(':')[0] : '';  
+      } else {
+        refinedLabel = key.replaceAll('.', ':');
+      }
+      return refinedLabel ? makeReadable(refinedLabel) : makeReadable(key);
     }
   }
 
   const renderTransSource = (type: string, value: string) => {
-    if (type == "HTML") {
+    if (['HTML', 'RICH_TEXT_FIELD'].includes(type)) {
       return <Editor text={value} readOnly={true} />;
       return;
     } else {
@@ -725,7 +666,7 @@ export default function App() {
 
   const renderTransEditor = (type: string, id: string, key: string) => {
     let editorObj;
-    if (type == "HTML") {
+    if (['HTML', 'RICH_TEXT_FIELD'].includes(type)) {
       editorObj = (
         <Editor
           text={getTranslatedValue(id, key)}
@@ -776,7 +717,8 @@ export default function App() {
 
   const renderSelectedResourceHeadline = (resource: any) => {
     const _path = resource._path;
-    const showingImage = ["product", "collection", "article"].indexOf(_path) > -1;
+    const showingImage =
+      ["product", "collection", "article"].indexOf(_path) > -1;
     let imageUrl = "";
     if (showingImage) {
       if (_path == "product") {
@@ -789,98 +731,94 @@ export default function App() {
         imageUrl = resource.image ? resource.image.url + "&width=24" : "";
       }
     }
+
+    let title = resource.title;
+    if (['theme', 'template', 'static', 'section', 'content'].indexOf(_path) > -1) {
+      title = theme.name;
+    }
+
+    let targetUrl = '';
+    if (_path == "product") {
+      targetUrl = '/products/' + resource.id.split("/").pop();
+    } else if (_path == "collection") {
+      targetUrl = '/collections/' + resource.id.split("/").pop();
+    } else if (_path == "blog") {
+      targetUrl = '/blogs/' + resource.id.split("/").pop();
+    } else if (_path == "article") {
+      targetUrl = '/articles/' + resource.id.split("/").pop();
+    } else if (_path == "page") {
+      targetUrl = '/pages/' + resource.id.split("/").pop();
+    } else if (_path == "policy") {
+      targetUrl = '/settings/legal';
+    } else if(_path == 'metaobject') {
+      targetUrl = '/content/metaobjects/entries/null/' + resource.id.split("/").pop();
+    } else if (['theme', 'template', 'static', 'section', 'content'].indexOf(_path) > -1) {
+      targetUrl = `/themes/${theme.rawId}/editor`;
+    } else if (_path == 'content') {
+      targetUrl = `/themes/${theme.rawId}/language`;
+    }
+
     return (
       <InlineStack gap="200">
         {showingImage && (
           <Thumbnail
             source={imageUrl ? imageUrl : ImageIcon}
             size="small"
-            alt={resource.title}
+            alt={title}
           />
         )}
 
-        <a
-          className="link--external"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            if (_path == "product") {
-              getRedirect(shopify).dispatch(Redirect.Action.ADMIN_SECTION, {
-                section: {
-                  name: Redirect.ResourceType.Product,
-                  resource: {
-                    id: resource.id.split("/").pop(),
-                  },
-                },
-                newContext: true,
-              });
-            } else if (_path == "collection") {
-              getRedirect(shopify).dispatch(Redirect.Action.ADMIN_SECTION, {
-                section: {
-                  name: Redirect.ResourceType.Collection,
-                  resource: {
-                    id: resource.id.split("/").pop(),
-                  },
-                },
-                newContext: true,
-              });
-            } else if (_path == "blog") {
-              // TODO
+        {(targetUrl != '') ? (
+          <a
+            className="link--external"
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
               getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
-                path: '/blogs/' + resource.id.split("/").pop(),
+                path: targetUrl,
                 newContext: true,
               });
-            } else if (_path == "article") {
-              // TODO
-              getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
-                path: '/articles/' + resource.id.split("/").pop(),
-                newContext: true,
-              });
-            } else if (_path == "page") {
-              // TODO
-              getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
-                path: '/pages/' + resource.id.split("/").pop(),
-                newContext: true,
-              });
-            }
-          }}
-        >
-          <InlineStack wrap={false} gap="200">
-            <Text as="h2" variant="headingLg">
-              {resource.title}
-            </Text>
-            <Icon source={ExternalIcon} />
-          </InlineStack>
-        </a>
+            }}
+          >
+            <InlineStack wrap={false} gap="200">
+              <Text as="h2" variant="headingLg">
+                {title}
+              </Text>
+              <Icon source={ExternalIcon} />
+            </InlineStack>
+          </a>
+        ) : (
+          <Text as="h2" variant="headingLg">
+            {title}
+          </Text>
+        )}
+        
       </InlineStack>
     );
   };
 
   const renderEmptyState = (path: string) => {
 
+    let title = 'No ' + makeReadable(path) + 's found.'
+    if (['theme', 'template'].indexOf(path) > -1) {
+      title = `${theme.name} has no fields to translate`;
+    }
+
     return (
       <EmptyState
-        heading={'No ' + makeReadable(path) + ' found.'}
+        heading={title}
         image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
       >
-        {path == 'article' && (<Button onClick={() => {
+        {Object.keys(emptyStateInfo).includes(path) && (<Button onClick={() => {
           getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
-            path: '/content/articles',
+            path: emptyStateInfo[path][1].replace('${themeId}', theme.rawId),
             newContext: true,
           });
-        }}>Add blog post</Button>)}
-
-        {!['article'].includes(path) && (<Button onClick={() => {
-          getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
-            path: '/' + path + 's',
-            newContext: true,
-          });
-        }}>Add {path}</Button>)}
-
+        }}>{emptyStateInfo[path][0]}</Button>)}
       </EmptyState>
-    )
-  }
-  
+    );
+  };
+
   const renderEditSection = (path: string) => {
     return (
       <div>
@@ -1209,7 +1147,7 @@ export default function App() {
           </BlockStack>
         )}
 
-        {['collection', 'blog', 'article', 'page'].includes(path) && (
+        {Object.keys(commonReadActions).includes(path + '_read') && (
           <BlockStack gap="400">
             <Card padding="0">
               <table
@@ -1340,39 +1278,10 @@ export default function App() {
       </div>
     );
   };
-  ///////////////////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////////////////
-
-  // Add these helper functions for localStorage
-  const getStoredTranslations = () => {
-    if (typeof window === "undefined") return {};
-    try {
-      const stored = window.localStorage.getItem("translationStatus");
-      return stored ? JSON.parse(stored) : {};
-    } catch (e) {
-      console.error("Error reading from localStorage:", e);
-      return {};
-    }
-  };
-
-  const getStoredPreviousValues = () => {
-    if (typeof window === "undefined") return {};
-    try {
-      const stored = window.localStorage.getItem("previousValues");
-      return stored ? JSON.parse(stored) : {};
-    } catch (e) {
-      console.error("Error reading from localStorage:", e);
-      return {};
-    }
-  };
 
   // Add new state declarations
-  const [translationStatus, setTranslationStatus] = useState(() =>
-    getStoredTranslations(),
-  );
-  const [preSaveValues, setPreSaveValues] = useState(() =>
-    getStoredPreviousValues(),
-  );
+  const [translationStatus, setTranslationStatus] = useState({});
+  const [preSaveValues, setPreSaveValues] = useState({});
   const [editorResetCount, setEditorResetCount] = useState(0);
   const [savingItems, setSavingItems] = useState<{ [key: string]: boolean }>(
     {},
@@ -1383,30 +1292,64 @@ export default function App() {
   const [originalTranslations, setOriginalTranslations] = useState({});
   const [isTranslating, setIsTranslating] = useState(false);
 
-  // Add localStorage effects
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        "translationStatus",
-        JSON.stringify(translationStatus),
-      );
-    } catch (e) {
-      console.error("Error saving translation status:", e);
-    }
-  }, [translationStatus]);
+  // Add a ref to track whether we've already fetched states for this resource
+  const fetchedResourceRef = useRef("");
 
+  // Load translation states from database when a resource is selected
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        "previousValues",
-        JSON.stringify(preSaveValues),
-      );
-    } catch (e) {
-      console.error("Error saving previous values:", e);
+    if (selectedResource && shop && currentLocale?.locale) {
+      // Only fetch if we haven't already fetched for this resource
+      const resourceId = selectedResource.id;
+      const currentLocaleId = currentLocale.locale;
+      const currentMarketId = currentMarket?.id || "";
+      const resourceKey = `${resourceId}-${currentLocaleId}-${currentMarketId}`;
+
+      // Skip if we've already fetched for this exact resource/locale/market combination
+      if (fetchedResourceRef.current === resourceKey) {
+        console.log("Skipping duplicate fetchStates call for:", resourceKey);
+        return;
+      }
+
+      // Fetch translation states for the selected resource
+      const fetchStates = async () => {
+        try {
+          console.log("Fetching states for:", resourceKey);
+          const data = await getTranslationStateByResourceId(
+            shop,
+            resourceId,
+            currentLocaleId,
+            currentMarketId,
+          );
+
+          // Convert array to expected format
+          const statusMap = {};
+          const previousValuesMap = {};
+
+          if (Array.isArray(data)) {
+            data.forEach((row) => {
+              const key = `${row.resourceId}-${row.field}`;
+              if (row.status) {
+                statusMap[key] = row.status;
+              }
+              if (row.previousValue) {
+                previousValuesMap[key] = row.previousValue;
+              }
+            });
+          }
+
+          setTranslationStatus(statusMap);
+          setPreSaveValues(previousValuesMap);
+
+          // Mark as fetched for this resource
+          fetchedResourceRef.current = resourceKey;
+        } catch (error) {
+          console.error("Error fetching translation states:", error);
+        }
+      };
+
+      fetchStates();
     }
-  }, [preSaveValues]);
+  }, [selectedResource, shop, currentLocale, currentMarket]);
 
   // Add this helper function for translation info
   const getTranslationInfo = (id: string, key: string) => {
@@ -1427,10 +1370,10 @@ export default function App() {
 
   // Update handleTranslationApproval
   const handleTranslationApproval = async (id: string, key: string) => {
-
     const lastSavedValue = cleanFormState[id]?.[key]?.value || "";
     console.log("Storing last saved value:", lastSavedValue);
 
+    // Update local state
     setPreSaveValues((prev) => ({
       ...prev,
       [`${id}-${key}`]: lastSavedValue,
@@ -1440,6 +1383,25 @@ export default function App() {
       ...prev,
       [`${id}-${key}`]: true,
     }));
+
+    // Save to database
+    if (shop) {
+      try {
+        await updateTranslationState(
+          shop,
+          id,
+          key,
+          currentLocale.locale,
+          currentMarket?.id || "",
+          {
+            status: "confirmed",
+            previousValue: lastSavedValue,
+          },
+        );
+      } catch (error) {
+        console.error("Error updating translation state:", error);
+      }
+    }
 
     const translation = {
       id,
@@ -1451,8 +1413,8 @@ export default function App() {
       translations: JSON.stringify([translation]),
       origin: JSON.stringify({
         [id]: {
-          [key]: transDataObject[id][key]
-        }
+          [key]: transDataObject[id][key],
+        },
       }),
       id: selectedResource.id,
       market: currentMarket.id,
@@ -1473,6 +1435,7 @@ export default function App() {
       console.log("Restoring to:", previousValue);
       updateTranslation(id, key, previousValue, true);
 
+      // Update local state
       setTranslationStatus((prev) => {
         const newStatus = { ...prev };
         delete newStatus[`${id}-${key}`];
@@ -1484,6 +1447,21 @@ export default function App() {
         delete newValues[`${id}-${key}`];
         return newValues;
       });
+
+      // Delete from database
+      if (shop) {
+        try {
+          deleteTranslationState(
+            shop,
+            id,
+            key,
+            currentLocale.locale,
+            currentMarket?.id || "",
+          );
+        } catch (error) {
+          console.error("Error deleting translation state:", error);
+        }
+      }
     }
   };
 
@@ -1492,10 +1470,27 @@ export default function App() {
     const originalValue = originalTranslations[`${id}-${key}`] || "";
     updateTranslation(id, key, originalValue);
 
+    // Update local state
     setTranslationStatus((prev) => ({
       ...prev,
       [`${id}-${key}`]: "rejected",
     }));
+
+    // Update in database
+    if (shop) {
+      try {
+        updateTranslationState(
+          shop,
+          id,
+          key,
+          currentLocale.locale,
+          currentMarket?.id || "",
+          { status: "rejected" },
+        );
+      } catch (error) {
+        console.error("Error updating translation state:", error);
+      }
+    }
   };
 
   // Update handleTranslation function
@@ -1666,7 +1661,6 @@ export default function App() {
   const renderStatus = (id: string, key: string) => {
     const info = getTranslationInfo(id, key);
     const isTranslating = translatingItems[`${id}-${key}`] === true;
-    const translationKey = `${id}-${key}`;
 
     // Check if this is a confirmed field that has been edited
     const isEdited =
@@ -1787,50 +1781,6 @@ export default function App() {
     });
   };
 
-  const selectAllItems = (section: string) => {
-    const newCheckedItems = new Set<string>();
-
-    // For product section
-    if (section === "product" && productInfoIds?.id) {
-      // Add main product translations
-      if (transData[productInfoIds.id]) {
-        transData[productInfoIds.id].forEach((item) => {
-          newCheckedItems.add(`${productInfoIds.id}-${item.key}`);
-        });
-      }
-    }
-
-    // For product options section
-    if (section === "product_options" && productInfoIds?.options) {
-      productInfoIds.options.forEach((option) => {
-        if (transData[option.id]) {
-          newCheckedItems.add(`${option.id}-name`);
-        }
-
-        option.optionValues.forEach((value) => {
-          if (transData[value.id]) {
-            newCheckedItems.add(`${value.id}-name`);
-          }
-        });
-      });
-    }
-
-    // For collection section
-    if (section === "collection" && resourceInfo?.id) {
-      if (transData[resourceInfo.id]) {
-        transData[resourceInfo.id].forEach((item) => {
-          newCheckedItems.add(`${resourceInfo.id}-${item.key}`);
-        });
-      }
-    }
-
-    setCheckedItems(newCheckedItems);
-  };
-
-  const clearSelections = () => {
-    setCheckedItems(new Set());
-  };
-
   const handleBulkSave = async () => {
     if (checkedItems.size === 0) return;
 
@@ -1855,6 +1805,25 @@ export default function App() {
         ...prev,
         [itemKey]: true,
       }));
+
+      // Save to database
+      if (shop) {
+        try {
+          updateTranslationState(
+            shop,
+            id,
+            key,
+            currentLocale.locale,
+            currentMarket?.id || "",
+            {
+              status: "confirmed",
+              previousValue: lastSavedValue,
+            },
+          );
+        } catch (error) {
+          console.error("Error updating translation state:", error);
+        }
+      }
 
       // Only add to bulk save if we have a valid form state for this item
       if (formState[id] && formState[id][key]) {
@@ -2025,6 +1994,16 @@ export default function App() {
                     selected={selectedResource}
                     section={section}
                     visible={!isSearchVisible}
+                  />
+                )}
+
+                {['filter', 'policy', 'metaobject', 'template', 'theme', 'static', 'section', 'content', 'embed'].includes(section) && (
+                  <ResourcesPanel
+                    onSelect={selectResource}
+                    selected={selectedResource}
+                    section={section}
+                    visible={!isSearchVisible}
+                    key={'resroueces_panel_' + section}
                   />
                 )}
                 

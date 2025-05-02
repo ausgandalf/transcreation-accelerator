@@ -20,7 +20,7 @@ export const sourceCellStyle = {
 }
 
 export const xtraCellStyle = (type:string) => {
-  if (type == 'HTML') {
+  if (['HTML', 'RICH_TEXT_FIELD'].includes(type)) {
     return {
       padding: '0',
     }

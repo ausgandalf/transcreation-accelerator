@@ -1,10 +1,13 @@
-export async function getActiveThemeId(graphql) {
+export async function getActiveThemeInfo(graphql) {
 
   const response = await graphql(`
   query getMainThemeId {
     themes(first: 1, roles: [MAIN]) {
       nodes {
         id
+        name
+        prefix
+        themeStoreId
       }
     }
   }`);
@@ -14,12 +17,20 @@ export async function getActiveThemeId(graphql) {
     data: { themes },
   } = await response.json();
 
+  let theme = {
+    'rawId': '',
+    'id': '',
+    'name': '',
+    'prefix': '',
+    'themeStoreId': '',
+  }
+
   let themeId = '-';
   if (themes.nodes && (themes.nodes.length > 0)) {
-    themeId = themes.nodes[0].id;
-    themeId = themeId.split('/').slice(-1)[0];
+    theme = {...themes.nodes[0]};
+    theme.rawId = theme.id.split('/').slice(-1)[0];
   }
-  return themeId;
+  return theme;
 }
 
 export async function getShopLocales(graphql, isHook = false) {
@@ -78,6 +89,7 @@ export async function getShopMarkets(graphql, isHook = false) {
     id: x.id,
     handle: x.handle,
     name: x.name,
+    locales: [],
     // locales: x?.webPresences.nodes[0].rootUrls, // ??? is this always existing here???
   }));
 }
@@ -448,17 +460,22 @@ export async function getPages(graphql, cursor?:string, limit:number = 12, statu
   return {pages, total: pagesCount.count};
 }
 
-export async function getTranslatableIds(graphql, resourceType:string, cursor:string) {
+export async function getTranslatableIds(graphql, resourceType:string, cursor:string = '', limit:number = 12) {
   const after = cursor ? `after:"${cursor}",` : ``;
   const query = `
   query getTranslatableIds{
-    translatableResources(first:10, ${after} resourceType:${resourceType}) {
+    translatableResources(first:${limit}, ${after} resourceType:${resourceType}) {
       pageInfo {
         endCursor
         hasNextPage
+        hasPreviousPage
       }
       nodes {
         resourceId
+        translatableContent {
+          key
+          value
+        }
       }
     }
   }`;

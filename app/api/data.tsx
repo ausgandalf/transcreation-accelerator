@@ -14,37 +14,37 @@ export const sections = [
       {content: 'Blog posts', url: '/localize/article'},
       {content: 'Blog titles', url:  '/localize/blog'},
       // {content: 'Cookie banner', url:  '#', suffix: tooltip('Default translations already available in supported languges')},
-      // {content: 'Filters', url:  '#'},
-      // {content: 'Metaobjects', url:  '#'},
+      {content: 'Filters', url:  '/localize/filter'},
+      {content: 'Metaobjects', url:  '/localize/metaobject'},
       {content: 'Pages', url:  '/localize/page'},
-      // {content: 'Policies', url:  '#'},
+      {content: 'Policies', url:  '/localize/policy'},
       // {content: 'Store metadata', url:  '#'},
     ],
-  },/*
+  },
   {
     title: 'Content',
     items: [
-      {content: 'Menu', url: '#'},
+      // {content: 'Menu', url: '#'},
     ],
   },
   {
     title: 'Theme',
     items: [
-      {content: 'App embeds', url: '#'},
-      {content: 'Default theme content', url: '#'},
-      {content: 'Section groups', url: '#'},
-      {content: 'Static sections', url: '#'},
-      {content: 'Templates', url: '#'},
-      {content: 'Theme settings', url: '#'},
+      {content: 'App embeds', url: '/localize/embed'},
+      {content: 'Default theme content', url: '/localize/content'},
+      {content: 'Section groups', url: '/localize/section'},
+      {content: 'Static sections', url: '/localize/static'},
+      {content: 'Templates', url: '/localize/template'},
+      {content: 'Theme settings', url: '/localize/theme'},
     ],
   },
   {
     title: 'Settings',
     items: [
-      {content: 'Notifications', url: '#'},
-      {content: 'Shipping and delivery', url: '#'},
+      // {content: 'Notifications', url: '#'},
+      // {content: 'Shipping and delivery', url: '#'},
     ],
-  },*/
+  },
 ]
 
 export const guideData = [
@@ -99,7 +99,30 @@ export const resourceTypePath = {
   'BLOG': 'blog',
   'ARTICLE': 'article',
   'PAGE': 'page',
+  'FILTER': 'filter',
+  'SHOP_POLICY': 'policy',
+  'METAOBJECT': 'metaobject',
+  'ONLINE_STORE_THEME_JSON_TEMPLATE': 'template',
+  'ONLINE_STORE_THEME_SETTINGS_CATEGORY': 'theme',
+  'ONLINE_STORE_THEME_SECTION_GROUP': 'section',
+  'ONLINE_STORE_THEME_SETTINGS_DATA_SECTIONS': 'static',
+  'ONLINE_STORE_THEME_LOCALE_CONTENT': 'content',
+  'ONLINE_STORE_THEME_APP_EMBED': 'embed',
 }
+
+export const syncTypes = (() => {
+  const types = Object.keys(resourceTypePath);
+  return types.filter(x => (['PRODUCT_OPTION', 'PRODUCT_OPTION_VALUE'].indexOf(x) < 0));
+})();
+
+export const availablePathes = (() => {
+  const pathes = [];
+  for (let key in resourceTypePath) {
+    const section = resourceTypePath[key];
+    if (pathes.indexOf(section) < 0) pathes.push(section);
+  }
+  return pathes;
+})();
 
 export const getResourceTypesPerSection = () => {
   const types = {};
@@ -109,4 +132,37 @@ export const getResourceTypesPerSection = () => {
     types[section].push(key);
   }
   return types;
+}
+
+
+export const commonReadActions = (() => {
+  const actions = {};
+  for (let key in resourceTypePath) {
+    const section = resourceTypePath[key];
+    if (!(section + '_read' in actions)) actions[section + '_read'] = key;
+  }
+
+  delete actions['product_read'];
+  return actions;
+})();
+
+export const readActions = {
+  ...commonReadActions,
+  'product_read' : 'PRODUCT',
+}
+
+export const emptyStateInfo = {
+  'article': ['Add blog post', '/content/articles'],
+  'blog': ['Add blog', '/content/blogs'],
+  'product': ['Add product', '/products'],
+  'collection': ['Add collection', '/collections'],
+  'page': ['Add page', '/content/articles'],
+  'field': ['Add a field', '/online_store/preferences'],
+  'metaobject': ['Add metaobject', '/content/metaobjects'],
+  'theme': ['Add a field', '/themes/${themeId}/editor'],
+  'template': ['Add a field', '/themes/${themeId}/editor'],
+  'static': ['Add a field', '/themes/${themeId}/editor'],
+  'section': ['Add a field', '/themes/${themeId}/editor'],
+  'content': ['Add a field', '/themes/${themeId}/language'],
+  'embed': ['Add app embed', '/themes'],
 }
