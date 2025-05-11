@@ -76,14 +76,16 @@ model SyncProcess {
 }
 
 model TranslationState {
-  id            String     @id @default(auto()) @map("_id") @db.ObjectId
-  shop          String
-  resourceId    String
-  field         String
-  locale        String
-  market        String
-  status        String?    // "confirmed", "rejected", null (needs attention)
-  previousValue String?    // Previous translation value for undo functionality
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  shop           String
+  resourceId     String
+  resourceType   String   // "product", "option", or "option_value"
+  parentProductId String? // The product ID this belongs to
+  field          String
+  locale         String
+  market         String
+  status         String?
+  previousValue  String?
 
   @@unique([shop, resourceId, field, locale, market])
 }

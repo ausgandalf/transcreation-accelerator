@@ -189,6 +189,18 @@ export function getIDBySection(id?:string|null, section?:string) {
     case 'section':
       idv = `gid://shopify/OnlineStoreThemeSectionGroup/${id}`;
       break;
+    case 'content':
+      idv = `gid://shopify/OnlineStoreThemeLocaleContent/${id}`;
+      break;
+    case 'embed':
+      idv = `gid://shopify/OnlineStoreThemeAppEmbed/${id}`;
+      break;
+    case 'menu':
+      idv = `gid://shopify/Menu/${id}`;
+      break;
+    case 'shop':
+      idv = `gid://shopify/Shop/${id}`;
+      break;
     default: 
       idv = `gid://shopify/${makeReadable(section)}/${id}`; // Should we?? yeah!!!
   }
@@ -204,6 +216,8 @@ export function getResourceItemLabel(resourceId:string, type: string, translatab
   let label = '';
   if (type == 'SHOP_POLICY') {
     label = 'Privacy Policy';
+  } else if (type == 'SHOP') {
+    label = 'Meta content';
   } else if ([
     'ONLINE_STORE_THEME_JSON_TEMPLATE', 
     'ONLINE_STORE_THEME_SETTINGS_CATEGORY',
@@ -212,6 +226,8 @@ export function getResourceItemLabel(resourceId:string, type: string, translatab
   ].includes(type)) {
     label = resourceId.split('/').pop();
     label = makeReadable(label.split('?')[0]);
+  } else if ( type == 'ONLINE_STORE_THEME_LOCALE_CONTENT' ) {
+    // Do nothing
   } else {
     let firstLabel = '';
     translatableContent.some((x) => {

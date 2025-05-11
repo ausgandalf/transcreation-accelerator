@@ -85,9 +85,20 @@ export const SearchPanel = (props:SearchPanelProps) => {
     // console.log(item);
     if (selectedResource.id == item.id) return;
 
-    const searchParamValues = ((prev) => {
+    let marketHandle = '';
+    if (item.market) {
+      markets.some((x, i) => {
+        if (x.name == item.market) {
+          marketHandle = x.handle;
+          return true;
+        }
+      })
+    }
 
-      if (extractId(item.parentId) == item.resourceId) {
+    const searchParamValues = ((prev) => {
+      if (item.resourceType == 'ONLINE_STORE_THEME_LOCALE_CONTENT') {
+        prev.set("highlight", item.field);
+      } else if (extractId(item.parentId) == item.resourceId) {
         prev.set("highlight", item.field);
       } else {
         prev.set("highlight", item.resourceId);
@@ -97,23 +108,22 @@ export const SearchPanel = (props:SearchPanelProps) => {
       if (item.locale && (prev.get('shopLocale') != item.locale)) {
         prev.set("shopLocale", item.locale);
       }
+
       if (!item.market) {
         prev.delete('market');
       } else if (prev.get('market') != item.market) {
-        let marketHandle = '';
-        markets.some((x, i) => {
-          if (x.name == item.market) {
-            marketHandle = x.handle;
-            return true;
-          }
-        })
         if (marketHandle) prev.set("market", marketHandle);
       }
+
+      if (parentItem.item) {
+        prev.set("item", parentItem.item);
+      }
+
       return prev;
     })(searchParams);
 
     setSelectedResource(item);
-    onSelect(parentItem, searchParamValues, resourceTypePath[item.resourceType]);
+    onSelect({...parentItem, locale:item.locale, market:marketHandle}, searchParamValues, resourceTypePath[item.resourceType]);
   }
 
   useEffect(() => {
@@ -345,7 +355,7 @@ export const SearchPanel = (props:SearchPanelProps) => {
           {Object.keys(resources).map((key, index) => {
             const parentItem = resources[key].info;
             return (
-              <div key={'search-section-' + parentItem.id} className='item-blocks'>
+              <div key={'search-section-' + parentItem.id + '-' + (parentItem.item ?? '')} className='item-blocks'>
                 <div className='item item--section'>
                   <Text as='p' variant='headingMd'>{parentItem.title}</Text>
                 </div>

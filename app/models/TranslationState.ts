@@ -6,9 +6,13 @@ export type TranslationStatus =
   | "needs_attention"
   | "not_translated";
 
+export type ResourceType = "product" | "option" | "option_value";
+
 export interface TranslationStateCondition {
   shop: string;
   resourceId: string;
+  resourceType?: ResourceType;
+  parentProductId?: string;
   field?: string;
   locale: string;
   market?: string;
@@ -17,6 +21,8 @@ export interface TranslationStateCondition {
 export interface TranslationStateData {
   shop: string;
   resourceId: string;
+  resourceType: ResourceType;
+  parentProductId?: string;
   field: string;
   locale: string;
   market: string;
@@ -27,6 +33,7 @@ export interface TranslationStateData {
 const defaultCondition: TranslationStateCondition = {
   shop: "",
   resourceId: "",
+  resourceType: "product" as ResourceType,
   field: "",
   locale: "",
   market: "",
@@ -49,12 +56,68 @@ export const TranslationState = {
     return rows;
   },
 
+  getByParentProductId: async (condition: Omit<TranslationStateCondition, 'resourceId'> & { parentProductId: string, resourceId?: string }) => {
+    const { shop, parentProductId, locale, market } = condition;
+
+    if (!parentProductId) {
+      return [];
+    }
+
+    const whereClause: any = { 
+      shop, 
+      locale, 
+      market: market || "",
+    };
+
+    whereClause.parentProductId = parentProductId;
+    
+    let rows = await prisma.translationState.findMany({
+      where: whereClause,
+    });
+    
+    if (rows.length === 0) {
+      delete whereClause.parentProductId;
+      whereClause.resourceId = parentProductId;
+      
+      rows = await prisma.translationState.findMany({
+        where: whereClause,
+      });
+    }
+
+    if (rows.length > 0) {
+      rows.sort((a: any, b: any) => {
+        const resourceTypeOrder: Record<string, number> = { 
+          product: 0, 
+          option: 1, 
+          option_value: 2 
+        };
+        
+        const aType = resourceTypeOrder[a.resourceType as string] || 99;
+        const bType = resourceTypeOrder[b.resourceType as string] || 99;
+        
+        if (aType !== bType) {
+          return aType - bType;
+        }
+        
+        return (a.field as string).localeCompare(b.field as string);
+      });
+    }
+
+    return rows;
+  },
+
   get: async (condition: TranslationStateCondition) => {
     condition = { ...defaultCondition, ...condition };
     const { shop, resourceId, field, locale, market } = condition;
 
     const row = await prisma.translationState.findFirst({
-      where: { shop, resourceId, field, locale, market },
+      where: { 
+        shop, 
+        resourceId, 
+        field: field || "", 
+        locale, 
+        market: market || "" 
+      },
     });
 
     if (!row) {
@@ -65,7 +128,6 @@ export const TranslationState = {
   },
 
   upsert: async (data: TranslationStateData) => {
-    // Ensure market is never undefined or null
     if (!data.market) {
       data.market = "";
     }
@@ -79,13 +141,18 @@ export const TranslationState = {
         market: data.market,
       },
     };
-    console.log("YYYYYYYYYYYYYYYYYYYYYYYYYYYY", data);
 
     try {
+      const dataWithNewFields: any = {
+        ...data,
+        resourceType: data.resourceType,
+        parentProductId: data.parentProductId,
+      };
+
       const row = await prisma.translationState.upsert({
         where,
-        update: data,
-        create: data,
+        update: dataWithNewFields,
+        create: dataWithNewFields,
       });
       return row;
     } catch (e) {
@@ -104,9 +171,9 @@ export const TranslationState = {
           shop_resourceId_field_locale_market: {
             shop,
             resourceId,
-            field,
+            field: field || "",
             locale,
-            market,
+            market: market || "",
           },
         },
       });
@@ -118,7 +185,6 @@ export const TranslationState = {
   },
 };
 
-// These individual exported functions are used in the route files
 export const getTranslationState = async (
   shop: string,
   resourceId: string,
@@ -135,6 +201,21 @@ export const getTranslationState = async (
   });
 };
 
+export const getTranslationStateByParentProductId = async (
+  shop: string,
+  parentProductId: string,
+  locale: string,
+  market: string,
+) => {
+  return TranslationState.getByParentProductId({
+    shop,
+    parentProductId,
+    locale,
+    market,
+    resourceId: "",
+  } as any);
+};
+
 export const updateTranslationState = async (
   shop: string,
   resourceId: string,
@@ -142,10 +223,17 @@ export const updateTranslationState = async (
   locale: string,
   market: string,
   data: { status?: TranslationStatus; previousValue?: string },
+  resourceType: ResourceType = "product",
+  parentProductId?: string,
 ) => {
+  const finalParentProductId = parentProductId || 
+    (resourceType === "product" ? resourceId : undefined);
+
   return TranslationState.upsert({
     shop,
     resourceId,
+    resourceType,
+    parentProductId: finalParentProductId,
     field,
     locale,
     market,

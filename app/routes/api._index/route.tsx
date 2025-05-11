@@ -3,7 +3,7 @@ import { authenticate } from "../../shopify.server";
 import { TranslationRow, Translations } from "app/models/Translations";
 import { SyncTranslationsRow, SyncProcessRow, Sync } from "app/models/Sync";
 import { syncProductTranslations, syncCollectionTranslations, syncOtherTranslations, doSyncProcess } from "app/api/Actions";
-import { resourceTypePath } from "app/api/data";
+import { contentList, resourceTypePath } from "app/api/data";
 import { getIDBySection, makeReadable, getResourceItemLabel } from "app/components/Functions";
 
 import { 
@@ -25,6 +25,8 @@ import {
   createImageOnStore,
   getImageURL,
   getTranslatableIds,
+  getTranslatableIdsWithTranslations,
+  getMenuItemIds,
 } from 'app/api/GraphQL';
 
 import { sleep } from "app/components/Functions";
@@ -108,6 +110,48 @@ export async function action({ request, params }) {
     // result['product'] = product; // Put product info
     result['resource'] = product; // Put product info
     
+  } else if (data.action == 'menu_read') {
+    // Read translation by id per type
+    const ids = [data.id];
+    const idTypes = {};
+    idTypes[data.id] = 'MENU';
+
+    const menu = {
+      id: data.id,
+      items: []
+    };
+
+    // Read Menu items
+    let menuItems = [];
+    let endLoop = false; // We fetch translation data only when product is found.
+    while (!endLoop) {
+      try {
+        menuItems = await getMenuItemIds(admin.graphql, data.id);
+        endLoop = true;
+      } catch (e) {}
+    }
+    
+    menuItems.map((x,i) => {
+      const correctShopifyId = "gid://shopify/Link/" + x.id.split('/').pop();
+      ids.push(correctShopifyId);
+      menu.items.push(correctShopifyId);
+      idTypes[correctShopifyId] = 'MENU_ITEM';
+    })
+    
+    // Load Translation data
+    endLoop = false; // We fetch translation data only when product is found.
+    while (!endLoop) {
+      try {
+        result = await getTranslationsByIds(admin.graphql, JSON.stringify(ids), data.locale, data.market);
+        endLoop = true;
+      } catch (e) {
+        console.log(e);
+        endLoop = true;
+      }
+    }
+    result['idTypes'] = idTypes;
+    result['resource'] = menu;
+    
   } else if (Object.keys(commonReadActions).includes(data.action)) {
     // Read translation by id per type
     const ids = [data.id];
@@ -184,21 +228,33 @@ export async function action({ request, params }) {
     while (endLoop < 10) {
       try {
         endLoop++;
-        resources = await getTranslatableIds(admin.graphql, data.type, data.cursor, data.perPage);
+        if (data.type == 'ONLINE_STORE_THEME_LOCALE_CONTENT') {
+          const themeId = data.theme;
+          const { transdata } = await getTranslationsByIds(admin.graphql, JSON.stringify(['gid://shopify/OnlineStoreThemeLocaleContent/'  + themeId]), data.locale, data.market)
+          resources = {nodes: transdata};
+          console.log(resources);
+          // resources = await getTranslatableIdsWithTranslations(admin.graphql, data.type, data.locale, data.market, data.cursor, data.perPage);
+        } else {
+          resources = await getTranslatableIds(admin.graphql, data.type, data.cursor, data.perPage);
+        }
         endLoop = 10;
       } catch (e) {
-        // console.log(e);
+        console.log(e);
       }
     }
 
     let list = [];
-    for (let i=0; i<resources.nodes.length; i++) {
-      const node = resources.nodes[i];
-
-      list.push({
-        id: node.resourceId,
-        title: getResourceItemLabel(node.resourceId, data.type, node.translatableContent)
-      });
+    if (data.type == 'ONLINE_STORE_THEME_LOCALE_CONTENT') {
+      list = resources.nodes; // Include translations
+    } else {
+      for (let i=0; i<resources.nodes.length; i++) {
+        const node = resources.nodes[i];
+  
+        list.push({
+          id: node.resourceId,
+          title: getResourceItemLabel(node.resourceId, data.type, node.translatableContent)
+        });
+      }
     }
 
     result = {resources: {
@@ -244,15 +300,18 @@ export async function action({ request, params }) {
 
         const fieldValue = translationsObj[i].data[j].key;
 
+        let parentId = data.id.split('/').pop();
+        if (translationsObj[i].type == 'ONLINE_STORE_THEME_LOCALE_CONTENT') parentId = data.item;
+
         dataset.push({
           shop,
           resourceType: translationsObj[i].type,
           resourceId: translationsObj[i].id.split('/').pop(),
-          parentId: data.id.split('/').pop(),
+          parentId: parentId,
           field: fieldValue,
           locale: data.locale,
           market: data.marketLabel,
-          content: originObj[data.id][fieldValue]['value'],
+          content: originObj[translationsObj[i].id][fieldValue]['value'],
           translation: translationsObj[i].data[j].value,
           updatedAt: new Date().toISOString(),
         });
@@ -417,13 +476,17 @@ export async function action({ request, params }) {
       v = v.replaceAll(q, `<em>${q}</em>`);
 
       const _path = resourceTypePath[x.resourceType];
-      const objId = getIDBySection(x.parentId ? x.parentId : x.resourceId, _path);
+      const objId = (_path == 'content') ? x.parentId : getIDBySection(x.parentId ? x.parentId : x.resourceId, _path);
       // console.log(x);
       // console.log(objId);
       if (!(objId in refined)) {
         refined[objId] = {
           _path,
-          info: {},
+          info: {
+            id: (_path == 'content') ? getIDBySection(x.resourceId, _path) : objId,
+            item: (_path == 'content') ? x.parentId : '',
+            title: (_path == 'content') ? contentList[objId].label : ''
+          },
           items: []
         };
       }
@@ -436,11 +499,16 @@ export async function action({ request, params }) {
       // Get resource info via GraphQL, 
       // (-- but let's skip to reduce GraphQL api interaction..., instead, we will get the title from DB --)
       // refined[key].info = await getResourceInfo(shop, admin.graphql, key, refined[key]._path);
-
-      // Get the title from DB, to reduce GraphQL usage rate
-      refined[key].info = await getResourceInfoFromDB(shop, key);
-      if (refined[key].info.title == '') {
-        refined[key].info.title = getResourceItemLabel(key, resourceTypesDictionary[refined[key]._path][0], refined[key].items);
+      
+      const _path = refined[key]._path;
+      if (_path == 'content') {
+        // DO NOTHING, already set before.
+      } else {
+        // Get the title from DB, to reduce GraphQL usage rate
+        refined[key].info = await getResourceInfoFromDB(shop, key);
+        if (refined[key].info.title == '') {
+          refined[key].info.title = getResourceItemLabel(key, resourceTypesDictionary[refined[key]._path][0], refined[key].items);
+        }
       }
     }
     // console.log('product-info-filled-up:', refined);

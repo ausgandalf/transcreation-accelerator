@@ -190,7 +190,7 @@ export default function App() {
           }}
           secondaryActions={
             <InlineStack gap="100">
-              <SyncRunner asButton />
+              {/* <SyncRunner asButton /> */}
 
               <Button 
                 // disabled={shop && (shop != '') ? false : true} 

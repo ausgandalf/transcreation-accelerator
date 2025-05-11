@@ -63,23 +63,41 @@ import {
   SkeletonLocalize,
   SkeletonTranslationContent,
 } from "../../components/Skeletons";
+
+import { TransReadResponseType } from './_types';
+
 import { ResourcePanel as ProductsPanel } from "./products";
 import { ResourcePanel as CollectionsPanel } from "./collections";
 import { ResourcePanel as BlogsPanel } from "./blogs";
 import { ResourcePanel as ArticlesPanel } from "./articles";
 import { ResourcePanel as PagesPanel } from "./pages";
+import { ResourcePanel as ThemeContentPanel } from "./theme_content";
 import { ResourcePanel as ResourcesPanel } from "./resources";
 
 import { SearchPanel } from "./search";
 
-import { sections, transKeys, availablePathes, commonReadActions, readActions, emptyStateInfo } from "app/api/data";
+import {
+  sections,
+  transKeys,
+  availablePathes,
+  commonReadActions,
+  readActions,
+  emptyStateInfo,
+} from "app/api/data";
 import { Editor } from "app/components/Editor";
 import { InsertImageModal } from "app/components/Editor--CKEditor--InsertImageModal";
 import {
   updateTranslationState,
   deleteTranslationState,
   getTranslationStateByResourceId,
+  getTranslationStateByParentProductId,
+  ResourceType,
 } from "app/lib/translation-state-client";
+import { SearchBar } from "../../components/SearchBar";
+import { TranslationProgressBar } from "../../components/TranslationProgressBar";
+import { ResourceHeadline } from "../../components/ResourceHeadline";
+
+import { contentList } from 'app/api/data';
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -94,15 +112,19 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   if (id) {
     // Load resource info
     selected = await getResourceInfo(shop, admin.graphql, id, section);
+    if (section == 'content') {
+      selected.item = url.searchParams.get("item") ?? '';
+      if (selected.item) selected.title = contentList[selected.item].label;
+    }
   }
 
   let theme = {
-    'rawId': '',
-    'id': '',
-    'name': '',
-    'prefix': '',
-    'themeStoreId': '',
-  }
+    rawId: "",
+    id: "",
+    name: "",
+    prefix: "",
+    themeStoreId: "",
+  };
   let endLoop = false;
   while (!endLoop) {
     try {
@@ -235,6 +257,8 @@ export default function App() {
 
   const fetcher = useFetcher();
 
+  const [prefetchedTranslations, setPrefetchedTranslations] = useState([]);
+
   const [selectedResource, setSelectedResource] = useState(selected);
 
   const [transIdTypes, setTransIdTypes] = useState({});
@@ -355,6 +379,7 @@ export default function App() {
       translations: JSON.stringify(translations),
       origin: JSON.stringify(transOrigin),
       id: selectedResource.id,
+      item: selectedResource.item ?? '',
       market: currentMarket.id,
       marketLabel: currentMarket.name,
       locale: currentLocale.locale,
@@ -364,69 +389,73 @@ export default function App() {
     fetcher.submit(data, { action: "/api", method: "post" });
   };
 
+  const onTransReadReturned = (transReadResponse: any) => {
+    // console.log(selectedResource, transReadResponse);
+    if (
+      transReadResponse.transdata &&
+      transReadResponse.resource.id == selectedResource.id
+    ) {
+      if (transReadResponse.action == "product_read") {
+        setProductInfoIds({ ...transReadResponse.resource });
+      } else {
+        setResourceInfo({ ...transReadResponse.resource });
+      }
+
+      setCurrentTranslateMarketLocale(
+        transReadResponse.resource.id +
+          "-" +
+          transReadResponse.input.locale +
+          "-" +
+          transReadResponse.input.market,
+      );
+      // Init form state
+      let translatableData = {};
+      let translatableDataObj = {};
+      let transData = {};
+      transReadResponse.transdata.map((x, i) => {
+        translatableData[x.resourceId] = structuredClone(
+          x.translatableContent,
+        );
+
+        translatableDataObj[x.resourceId] = {};
+        x.translatableContent.map((y, j) => {
+          translatableDataObj[x.resourceId][y.key] = { ...y };
+        });
+
+        transData[x.resourceId] = {};
+        x.translations.map((y, j) => {
+          // let obj = getTransSourceObj(x.translatableContent, y.key);
+          let obj = { ...translatableDataObj[x.resourceId][y.key] };
+          // obj.locale = currentLocale.locale;
+          obj.value = y.value;
+          obj.translatableContentDigest = obj.digest;
+          delete obj.digest;
+          delete obj.type;
+          transData[x.resourceId][y.key] = { ...obj };
+
+          translatableDataObj[x.resourceId][y.key]["updated"] = y.updatedAt;
+        });
+      });
+      
+      setTransData(translatableData);
+      setTransDataObject(translatableDataObj);
+      setTransIdTypes(transReadResponse.idTypes);
+
+      formStateDispatch({ type: "init", translations: transData });
+      setCleanFormState(transData);
+      setEditors({});
+      // Remove loading anim
+      setIsTranslationLoading(false);
+      setIsTranslationLoaded(true);
+    }
+  }
+
   useEffect(() => {
     if (!fetcher.data) {
     } else {
-      
       if (Object.keys(readActions).includes(fetcher.data.action)) {
         // TODO
-        if (
-          fetcher.data.transdata &&
-          fetcher.data.resource.id == selectedResource.id
-        ) {
-          if (fetcher.data.action == "product_read") {
-            setProductInfoIds({ ...fetcher.data.resource });
-          } else {
-            setResourceInfo({ ...fetcher.data.resource });
-          }
-
-          setCurrentTranslateMarketLocale(
-            fetcher.data.resource.id +
-              "-" +
-              fetcher.data.input.locale +
-              "-" +
-              fetcher.data.input.market,
-          );
-          // Init form state
-          let translatableData = {};
-          let translatableDataObj = {};
-          let transData = {};
-          fetcher.data.transdata.map((x, i) => {
-            translatableData[x.resourceId] = structuredClone(
-              x.translatableContent,
-            );
-
-            translatableDataObj[x.resourceId] = {};
-            x.translatableContent.map((y, j) => {
-              translatableDataObj[x.resourceId][y.key] = { ...y };
-            });
-
-            transData[x.resourceId] = {};
-            x.translations.map((y, j) => {
-              // let obj = getTransSourceObj(x.translatableContent, y.key);
-              let obj = { ...translatableDataObj[x.resourceId][y.key] };
-              // obj.locale = currentLocale.locale;
-              obj.value = y.value;
-              obj.translatableContentDigest = obj.digest;
-              delete obj.digest;
-              delete obj.type;
-              transData[x.resourceId][y.key] = { ...obj };
-
-              translatableDataObj[x.resourceId][y.key]["updated"] = y.updatedAt;
-            });
-          });
-
-          setTransData(translatableData);
-          setTransDataObject(translatableDataObj);
-          setTransIdTypes(fetcher.data.idTypes);
-
-          formStateDispatch({ type: "init", translations: transData });
-          setCleanFormState(transData);
-          setEditors({});
-          // Remove loading anim
-          setIsTranslationLoading(false);
-          setIsTranslationLoaded(true);
-        }
+        onTransReadReturned(fetcher.data);
       } else if (fetcher.data.action == "trans_submit") {
         // TODO
 
@@ -436,28 +465,28 @@ export default function App() {
         // Update into new data
         const newTransDataObj = structuredClone(transDataObject);
 
-        fetcher.data.results.map((x, i) => {
-          if (x.set && x.set.result && x.set.result && x.set.result) {
-            // Update
-            const resId = x.set.result.id;
-            x.set.result.translations.map((y, j) => {
-              newTransDataObj[resId][y.key]["updated"] = y.updatedAt;
-              updateTranslation(resId, y.key, y.value, true);
+        // Clear all saving states regardless of whether there are results
+        setSavingItems({});
 
-              // Update status to confirmed in local state
-              setTranslationStatus((prev) => ({
-                ...prev,
-                [`${resId}-${y.key}`]: "confirmed",
-              }));
+        if (fetcher.data.results && Array.isArray(fetcher.data.results)) {
+          fetcher.data.results.forEach((x, i) => {
+            if (x.set && x.set.result && x.set.result) {
+              // Update
+              const resId = x.set.result.id;
+              x.set.result.translations.map((y, j) => {
+                newTransDataObj[resId][y.key]["updated"] = y.updatedAt;
+                updateTranslation(resId, y.key, y.value, true);
 
-              // Clear saving state for this specific item
-              setSavingItems((prev) => ({
-                ...prev,
-                [`${resId}-${y.key}`]: false,
-              }));
-            });
-          }
-        });
+                // Update status to confirmed in local state
+                setTranslationStatus((prev) => ({
+                  ...prev,
+                  [`${resId}-${y.key}`]: "confirmed",
+                }));
+              });
+            }
+          });
+        }
+        
         setTransDataObject(newTransDataObj);
 
         setCleanFormState(structuredClone(formState));
@@ -512,8 +541,16 @@ export default function App() {
     return gonnaReload;
   };
 
+  const injectTransReadData = (item:any, path: string = "", fakeResponse:any = false) => {
+    console.log(item, path, fakeResponse);
+    if (fakeResponse) {
+      onTransReadReturned(fakeResponse);
+    }
+  };
+
   const selectResource = (item, searchParamValue = null, path: string = "") => {
-    // console.log(item, searchParamValue?.toString(), path);
+    // console.log(item, searchParamValue?.toString(), path, fakeResponse);
+    // console.trace();
     const itemId = item.id.split("/").pop();
     item._path = path; // Set path value
 
@@ -542,8 +579,7 @@ export default function App() {
       }
 
       if (searchParamValue) {
-        if (searchParams.get("id") != itemId)
-          searchParamValue.set("id", itemId);
+        if (searchParams.get("id") != itemId) searchParamValue.set("id", itemId);
         setSearchParams(searchParamValue);
       } else {
         setSearchParams((prev) => {
@@ -575,6 +611,7 @@ export default function App() {
   };
 
   const loadCurrentResource = () => {
+    if (section == 'content') return;
     loadResource(selectedResource); // Reload translation data
   };
 
@@ -644,19 +681,25 @@ export default function App() {
     if (key in transKeys) {
       return transKeys[key].label;
     } else {
-      let refinedLabel:any = '';
-      if (['template', 'theme', 'static', 'section'].includes(section)) {
-        refinedLabel = key.split('.').pop();
-        refinedLabel = refinedLabel ? refinedLabel.split(':')[0] : '';  
+      let refinedLabel: any = "";
+      if (["template", "theme", "static", "section"].includes(section)) {
+        refinedLabel = key.split(".").pop();
+        refinedLabel = refinedLabel ? refinedLabel.split(":")[0] : "";
+      } else if (section == 'content') {
+        refinedLabel = key.replaceAll(".", ":");
+        let dump = refinedLabel.split(":");
+        dump.shift();
+        dump = dump.slice(-2);
+        refinedLabel = dump.map((d, i) => (makeReadable(d))).join(" : ");
       } else {
-        refinedLabel = key.replaceAll('.', ':');
+        refinedLabel = key.replaceAll(".", ":");
       }
       return refinedLabel ? makeReadable(refinedLabel) : makeReadable(key);
     }
   }
 
   const renderTransSource = (type: string, value: string) => {
-    if (['HTML', 'RICH_TEXT_FIELD'].includes(type)) {
+    if (["HTML", "RICH_TEXT_FIELD"].includes(type)) {
       return <Editor text={value} readOnly={true} />;
       return;
     } else {
@@ -666,7 +709,7 @@ export default function App() {
 
   const renderTransEditor = (type: string, id: string, key: string) => {
     let editorObj;
-    if (['HTML', 'RICH_TEXT_FIELD'].includes(type)) {
+    if (["HTML", "RICH_TEXT_FIELD"].includes(type)) {
       editorObj = (
         <Editor
           text={getTranslatedValue(id, key)}
@@ -715,93 +758,12 @@ export default function App() {
     );
   };
 
-  const renderSelectedResourceHeadline = (resource: any) => {
-    const _path = resource._path;
-    const showingImage =
-      ["product", "collection", "article"].indexOf(_path) > -1;
-    let imageUrl = "";
-    if (showingImage) {
-      if (_path == "product") {
-        imageUrl = resource.image
-          ? resource.image.preview.image.url + "&width=24"
-          : "";
-      } else if (_path == "collection") {
-        imageUrl = resource.image ? resource.image.url + "&width=24" : "";
-      } else if (_path == "article") {
-        imageUrl = resource.image ? resource.image.url + "&width=24" : "";
-      }
-    }
-
-    let title = resource.title;
-    if (['theme', 'template', 'static', 'section', 'content'].indexOf(_path) > -1) {
-      title = theme.name;
-    }
-
-    let targetUrl = '';
-    if (_path == "product") {
-      targetUrl = '/products/' + resource.id.split("/").pop();
-    } else if (_path == "collection") {
-      targetUrl = '/collections/' + resource.id.split("/").pop();
-    } else if (_path == "blog") {
-      targetUrl = '/blogs/' + resource.id.split("/").pop();
-    } else if (_path == "article") {
-      targetUrl = '/articles/' + resource.id.split("/").pop();
-    } else if (_path == "page") {
-      targetUrl = '/pages/' + resource.id.split("/").pop();
-    } else if (_path == "policy") {
-      targetUrl = '/settings/legal';
-    } else if(_path == 'metaobject') {
-      targetUrl = '/content/metaobjects/entries/null/' + resource.id.split("/").pop();
-    } else if (['theme', 'template', 'static', 'section', 'content'].indexOf(_path) > -1) {
-      targetUrl = `/themes/${theme.rawId}/editor`;
-    } else if (_path == 'content') {
-      targetUrl = `/themes/${theme.rawId}/language`;
-    }
-
-    return (
-      <InlineStack gap="200">
-        {showingImage && (
-          <Thumbnail
-            source={imageUrl ? imageUrl : ImageIcon}
-            size="small"
-            alt={title}
-          />
-        )}
-
-        {(targetUrl != '') ? (
-          <a
-            className="link--external"
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
-                path: targetUrl,
-                newContext: true,
-              });
-            }}
-          >
-            <InlineStack wrap={false} gap="200">
-              <Text as="h2" variant="headingLg">
-                {title}
-              </Text>
-              <Icon source={ExternalIcon} />
-            </InlineStack>
-          </a>
-        ) : (
-          <Text as="h2" variant="headingLg">
-            {title}
-          </Text>
-        )}
-        
-      </InlineStack>
-    );
-  };
-
   const renderEmptyState = (path: string) => {
-
-    let title = 'No ' + makeReadable(path) + 's found.'
-    if (['theme', 'template'].indexOf(path) > -1) {
+    let title = "No " + makeReadable(path) + "s found.";
+    if (["theme", "template"].indexOf(path) > -1) {
       title = `${theme.name} has no fields to translate`;
+    } else if (["shop"].indexOf(path) > -1) {
+      title = `No fields to translate`;
     }
 
     return (
@@ -809,12 +771,21 @@ export default function App() {
         heading={title}
         image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
       >
-        {Object.keys(emptyStateInfo).includes(path) && (<Button onClick={() => {
-          getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
-            path: emptyStateInfo[path][1].replace('${themeId}', theme.rawId),
-            newContext: true,
-          });
-        }}>{emptyStateInfo[path][0]}</Button>)}
+        {Object.keys(emptyStateInfo).includes(path) && (
+          <Button
+            onClick={() => {
+              getRedirect(shopify).dispatch(Redirect.Action.ADMIN_PATH, {
+                path: emptyStateInfo[path][1].replace(
+                  "${themeId}",
+                  theme.rawId,
+                ),
+                newContext: true,
+              });
+            }}
+          >
+            {emptyStateInfo[path][0]}
+          </Button>
+        )}
       </EmptyState>
     );
   };
@@ -899,12 +870,6 @@ export default function App() {
                               onChange={() =>
                                 toggleItemCheck(productInfoIds.id, x.key)
                               }
-                              disabled={
-                                !getTranslatedValue(
-                                  productInfoIds.id,
-                                  x.key,
-                                ).trim()
-                              }
                             />
                           </div>
                           <BlockStack gap="100">
@@ -934,7 +899,23 @@ export default function App() {
                         {renderTransEditor(x.type, productInfoIds.id, x.key)}
                       </td>
                       <td style={cellStyle}>
-                        <Text as="p">Apr 1, 2025 - 11:28</Text>
+                        <Text as="p">
+                          {transDataObject[productInfoIds.id]?.[x.key]?.[
+                            "updated"
+                          ] ? (
+                            <>
+                              {getReadableDate(
+                                new Date(
+                                  transDataObject[productInfoIds.id][x.key][
+                                    "updated"
+                                  ],
+                                ),
+                              )}
+                            </>
+                          ) : (
+                            "No translation set"
+                          )}
+                        </Text>
                       </td>
 
                       <td style={cellStyle}>
@@ -1020,9 +1001,6 @@ export default function App() {
                               label=""
                               checked={checkedItems.has(`${x.id}-name`)}
                               onChange={() => toggleItemCheck(x.id, "name")}
-                              disabled={
-                                !getTranslatedValue(x.id, "name").trim()
-                              }
                             />
                           </div>
                           <BlockStack gap="100">
@@ -1058,7 +1036,23 @@ export default function App() {
                         {renderTransEditor(x.type, x.id, "name")}
                       </td>
                       <td style={cellStyle}>
-                        <Text as="p">Apr 1, 2025 - 11:28</Text>
+                        <Text as="p">
+                          {transDataObject[productInfoIds.id]?.[x.key]?.[
+                            "updated"
+                          ] ? (
+                            <>
+                              {getReadableDate(
+                                new Date(
+                                  transDataObject[productInfoIds.id][x.key][
+                                    "updated"
+                                  ],
+                                ),
+                              )}
+                            </>
+                          ) : (
+                            "No translation set"
+                          )}
+                        </Text>
                       </td>
                       <td style={cellStyle}>{renderStatus(x.id, "name")}</td>
                       <td style={cellStyle}>
@@ -1068,43 +1062,42 @@ export default function App() {
 
                     {x.optionValues.map((ov, j) => (
                       <tr key={"transopt-tr-ov--" + i + "-" + j}>
-                        {j === 0 ? (
-                          <td
-                            style={{ ...cellStyle }}
-                            rowSpan={x.optionValues.length}
+                        <td style={cellStyle}>
+                          <InlineStack
+                            gap="200"
+                            align="start"
+                            blockAlign="start"
                           >
-                            <InlineStack
-                              gap="200"
-                              align="start"
-                              blockAlign="start"
+                            <div
+                              style={renderDisabledCheckboxStyles(
+                                ov.id,
+                                "name",
+                              )}
                             >
                               <Checkbox
                                 label=""
                                 checked={checkedItems.has(`${ov.id}-name`)}
                                 onChange={() => toggleItemCheck(ov.id, "name")}
-                                disabled={
-                                  !getTranslatedValue(ov.id, "name").trim()
-                                }
                               />
-                              <BlockStack gap="100">
-                                <Text as="p" variant="headingSm">
-                                  {x.name}
-                                </Text>
+                            </div>
+                            <BlockStack gap="100">
+                              <Text as="p" variant="headingSm">
+                                {j === 0 ? x.name : ""}
+                              </Text>
+                              {j === 0 && (
                                 <Text as="p" tone="subdued" variant="bodySm">
                                   Option values
                                 </Text>
-                                <Text as="p" tone="subdued" variant="bodySm">
-                                  Source:{" "}
-                                  {getLanguageLabel(
-                                    transDataObject[ov.id]["name"].locale,
-                                  )}
-                                </Text>
-                              </BlockStack>
-                            </InlineStack>
-                          </td>
-                        ) : (
-                          <td />
-                        )}
+                              )}
+                              <Text as="p" tone="subdued" variant="bodySm">
+                                Source:{" "}
+                                {getLanguageLabel(
+                                  transDataObject[ov.id]["name"].locale,
+                                )}
+                              </Text>
+                            </BlockStack>
+                          </InlineStack>
+                        </td>
 
                         <td
                           className={
@@ -1132,7 +1125,23 @@ export default function App() {
                         </td>
 
                         <td style={cellStyle}>
-                          <Text as="p">Apr 1, 2025 - 11:28</Text>
+                          <Text as="p">
+                            {transDataObject[productInfoIds.id]?.[x.key]?.[
+                              "updated"
+                            ] ? (
+                              <>
+                                {getReadableDate(
+                                  new Date(
+                                    transDataObject[productInfoIds.id][x.key][
+                                      "updated"
+                                    ],
+                                  ),
+                                )}
+                              </>
+                            ) : (
+                              "No translation set"
+                            )}
+                          </Text>
                         </td>
                         <td style={cellStyle}>{renderStatus(ov.id, "name")}</td>
                         <td style={cellStyle}>
@@ -1147,8 +1156,9 @@ export default function App() {
           </BlockStack>
         )}
 
-        {Object.keys(commonReadActions).includes(path + '_read') && (
+        {Object.keys(commonReadActions).includes(path + "_read") && (
           <BlockStack gap="400">
+
             <Card padding="0">
               <table
                 className="table table--translate"
@@ -1224,12 +1234,6 @@ export default function App() {
                               onChange={() =>
                                 toggleItemCheck(resourceInfo.id, x.key)
                               }
-                              disabled={
-                                !getTranslatedValue(
-                                  resourceInfo.id,
-                                  x.key,
-                                ).trim()
-                              }
                             />
                             <BlockStack gap="100">
                               <Text as="p" variant="headingSm">
@@ -1269,10 +1273,138 @@ export default function App() {
                           {renderActionButtons(resourceInfo.id, x.key)}
                         </td>
                       </tr>
-                    ))}
+                    ))
+                  }
                 </tbody>
               </table>
             </Card>
+            
+            {path == 'menu' && (
+              <Card padding="0">
+                <table
+                  className="table table--translate"
+                  width="100%"
+                  cellSpacing="0"
+                  cellPadding="0"
+                >
+                  <thead>
+                    <tr>
+                      <th
+                        colSpan={3}
+                        style={{
+                          padding: "var(--p-space-600) var(--p-space-400)",
+                          gridColumn: "1 / -1",
+                        }}
+                      >
+                        <Text as="p" variant="headingMd" alignment="start">
+                          Menu Items
+                        </Text>
+                      </th>
+                    </tr>
+                    <tr>
+                      <th style={thStyle}></th>
+                      <th style={thStyle}>
+                        <Text as="p" tone="subdued" alignment="start">
+                          Reference
+                        </Text>
+                      </th>
+                      <th style={thStyle}>
+                        <Text as="p" tone="subdued" alignment="start">
+                          {currentLocale.name}
+                          {currentMarket.id ? ` for ${currentMarket.name}` : ``}
+                        </Text>
+                      </th>
+                      <th style={thStyle}>
+                        <Text as="p" tone="subdued" alignment="start">
+                          Last Updated
+                        </Text>
+                      </th>
+                      <th style={thStyle}>
+                        <Text as="p" tone="subdued" alignment="start">
+                          Status
+                        </Text>
+                      </th>
+                      <th style={thStyle}>
+                        <Text as="p" tone="subdued" alignment="start">
+                          Approval
+                        </Text>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resourceInfo.items.map((menuItemId, index) => (
+                      <>
+                      {transData[menuItemId] &&
+                        transData[menuItemId].map((x, i) => (
+                          <tr key={"transmain-tr--" + i}>
+                            <td
+                              width="15%"
+                              style={cellStyle}
+                              className={
+                                currentHighlight == menuItemId.split('/').pop() ? "highlighted" : ""
+                              }
+                            >
+                              <InlineStack
+                                gap="200"
+                                align="start"
+                                blockAlign="start"
+                              >
+                                <Checkbox
+                                  label=""
+                                  checked={checkedItems.has(
+                                    `${menuItemId}-${x.key}`,
+                                  )}
+                                  onChange={() =>
+                                    toggleItemCheck(menuItemId, x.key)
+                                  }
+                                />
+                                <BlockStack gap="100">
+                                  <Text as="p" variant="headingSm">
+                                    {getKeyLabel(x.key)}
+                                  </Text>
+                                  <Text as="p" tone="subdued" variant="bodySm">
+                                    Source: {getLanguageLabel(x.locale)}
+                                  </Text>
+                                </BlockStack>
+                              </InlineStack>
+                            </td>
+                            <td
+                              width="40%"
+                              className="cell cell--source"
+                              style={{
+                                ...cellStyle,
+                                ...sourceCellStyle,
+                                ...xtraCellStyle(x.type),
+                              }}
+                            >
+                              {renderTransSource(x.type, x.value)}
+                            </td>
+                            <td
+                              width="40%"
+                              className="cell cell--target"
+                              style={{ ...cellStyle, ...targetCellStyle }}
+                            >
+                              {renderTransEditor(x.type, menuItemId, x.key)}
+                            </td>
+                            <td style={cellStyle}>
+                              <Text as="p">Apr 1, 2025 - 11:28</Text>
+                            </td>
+                            <td style={cellStyle}>
+                              {renderStatus(menuItemId, x.key)}
+                            </td>
+                            <td style={cellStyle}>
+                              {renderActionButtons(menuItemId, x.key)}
+                            </td>
+                          </tr>
+                        ))
+                      }
+                      </>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            )}
+            
           </BlockStack>
         )}
       </div>
@@ -1314,7 +1446,10 @@ export default function App() {
       const fetchStates = async () => {
         try {
           console.log("Fetching states for:", resourceKey);
-          const data = await getTranslationStateByResourceId(
+
+          // Always use parentProductId which will fetch the resource and all its related items
+          // This works for both products and other resources
+          const data = await getTranslationStateByParentProductId(
             shop,
             resourceId,
             currentLocaleId,
@@ -1384,6 +1519,28 @@ export default function App() {
       [`${id}-${key}`]: true,
     }));
 
+    // Update translation status immediately to provide user feedback
+    setTranslationStatus((prev) => ({
+      ...prev,
+      [`${id}-${key}`]: "confirmed",
+    }));
+
+    // Determine resource type based on the id
+    let resourceType = "product";
+    let parentProductId = "";
+
+    if (id.includes("ProductOption/")) {
+      resourceType = "option";
+      parentProductId = selectedResource.id;
+    } else if (id.includes("ProductOptionValue/")) {
+      resourceType = "option_value";
+      parentProductId = selectedResource.id;
+    } else if (id === selectedResource.id) {
+      // This is the main product
+      resourceType = "product";
+      parentProductId = id; // Product is its own parent
+    }
+
     // Save to database
     if (shop) {
       try {
@@ -1397,16 +1554,44 @@ export default function App() {
             status: "confirmed",
             previousValue: lastSavedValue,
           },
+          resourceType as ResourceType,
+          parentProductId,
         );
       } catch (error) {
         console.error("Error updating translation state:", error);
       }
     }
 
+    // Ensure we have the form state entry for this key
+    if (!formState[id]) {
+      formState[id] = {};
+    }
+    
+    // If this is an empty translation being saved, ensure we have a proper object to submit
+    if (!formState[id][key] && transDataObject[id] && transDataObject[id][key]) {
+      // Clone the original object but set empty value
+      const emptyTransObj = { ...transDataObject[id][key] };
+      emptyTransObj.value = "";
+      emptyTransObj.translatableContentDigest = emptyTransObj.digest;
+      delete emptyTransObj.digest;
+      delete emptyTransObj.type;
+      delete emptyTransObj.updated;
+      
+      // Update form state
+      formStateDispatch({
+        type: "setTraslation",
+        id: id,
+        traslation: emptyTransObj,
+      });
+    }
+
+    // Create a temporary copy in case fetcher.submit fails
+    const currentFormValue = formState[id]?.[key] || { key, value: "" };
+
     const translation = {
       id,
       type: transIdTypes[id] ? transIdTypes[id] : "",
-      data: [formState[id][key]],
+      data: [currentFormValue],
     };
 
     const data = {
@@ -1423,7 +1608,26 @@ export default function App() {
       action: "trans_submit",
     };
 
-    fetcher.submit(data, { action: "/api", method: "post" });
+    console.log("Submitting data:", data);
+
+    // Set a timeout to clear loading state in case the API call fails
+    const timeoutId = setTimeout(() => {
+      setSavingItems((prev) => ({
+        ...prev,
+        [`${id}-${key}`]: false,
+      }));
+    }, 5000);
+
+    try {
+      fetcher.submit(data, { action: "/api", method: "post" });
+    } catch (error) {
+      console.error("Error submitting translation:", error);
+      clearTimeout(timeoutId);
+      setSavingItems((prev) => ({
+        ...prev,
+        [`${id}-${key}`]: false,
+      }));
+    }
   };
 
   // Update handleTranslationUndo
@@ -1467,29 +1671,22 @@ export default function App() {
 
   // Update handleTranslationRejection
   const handleTranslationRejection = (id: string, key: string) => {
-    const originalValue = originalTranslations[`${id}-${key}`] || "";
-    updateTranslation(id, key, originalValue);
-
-    // Update local state
-    setTranslationStatus((prev) => ({
-      ...prev,
-      [`${id}-${key}`]: "rejected",
-    }));
-
-    // Update in database
-    if (shop) {
-      try {
-        updateTranslationState(
-          shop,
-          id,
-          key,
-          currentLocale.locale,
-          currentMarket?.id || "",
-          { status: "rejected" },
-        );
-      } catch (error) {
-        console.error("Error updating translation state:", error);
-      }
+    // We're intentionally clearing the field, so create a proper empty translation object
+    if (transDataObject[id] && transDataObject[id][key]) {
+      // Clone the original object but set empty value
+      const emptyTransObj = { ...transDataObject[id][key] };
+      emptyTransObj.value = "";
+      emptyTransObj.translatableContentDigest = emptyTransObj.digest;
+      delete emptyTransObj.digest;
+      delete emptyTransObj.type;
+      delete emptyTransObj.updated;
+      
+      // Update form state with empty value
+      formStateDispatch({
+        type: "setTraslation",
+        id: id,
+        traslation: emptyTransObj,
+      });
     }
   };
 
@@ -1670,7 +1867,7 @@ export default function App() {
 
     if (isTranslating) {
       return (
-        <Badge progress="partiallyComplete" tone="info">
+        <Badge progress="complete" tone="info">
           <Text as="span" fontWeight="bold">
             In progress
           </Text>
@@ -1688,7 +1885,7 @@ export default function App() {
       );
     } else if (isEdited || info.hasTranslation) {
       return (
-        <Badge tone="warning" progress="incomplete">
+        <Badge tone="warning" progress="complete">
           <Text as="span" fontWeight="bold">
             Needs attention
           </Text>
@@ -1696,7 +1893,7 @@ export default function App() {
       );
     } else {
       return (
-        <Badge tone="critical">
+        <Badge tone="critical" progress="complete">
           <Text as="span" fontWeight="bold">
             Not translated
           </Text>
@@ -1722,10 +1919,11 @@ export default function App() {
     const isSaving = savingItems[`${id}-${key}`] === true;
     const isTranslating = translatingItems[`${id}-${key}`] === true;
 
+    // Modified canSave to allow saving even for empty translations
     const canSave =
       hasChanges ||
       needsAttention ||
-      (hasTranslation && !info.status) ||
+      !info.status || // Allow saving if no status (including empty translations)
       isEdited;
 
     return (
@@ -1763,13 +1961,8 @@ export default function App() {
 
   const toggleItemCheck = (id: string, key: string) => {
     const itemKey = `${id}-${key}`;
-    const value = getTranslatedValue(id, key);
-
-    // Don't allow checking items with empty translations
-    if (!value.trim()) {
-      return;
-    }
-
+    
+    // Remove the restriction on empty values - allow all items to be checked
     setCheckedItems((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(itemKey)) {
@@ -1806,6 +1999,28 @@ export default function App() {
         [itemKey]: true,
       }));
 
+      // Update translation status immediately to provide user feedback
+      setTranslationStatus((prev) => ({
+        ...prev,
+        [itemKey]: "confirmed",
+      }));
+
+      // Determine resource type based on the id
+      let resourceType = "product";
+      let parentProductId = "";
+
+      if (id.includes("ProductOption/")) {
+        resourceType = "option";
+        parentProductId = selectedResource.id;
+      } else if (id.includes("ProductOptionValue/")) {
+        resourceType = "option_value";
+        parentProductId = selectedResource.id;
+      } else if (id === selectedResource.id) {
+        // This is the main product
+        resourceType = "product";
+        parentProductId = id; // Product is its own parent
+      }
+
       // Save to database
       if (shop) {
         try {
@@ -1819,27 +2034,53 @@ export default function App() {
               status: "confirmed",
               previousValue: lastSavedValue,
             },
+            resourceType as ResourceType,
+            parentProductId,
           );
         } catch (error) {
           console.error("Error updating translation state:", error);
         }
       }
 
-      // Only add to bulk save if we have a valid form state for this item
-      if (formState[id] && formState[id][key]) {
-        translationsToSave.push({
-          id,
-          type: transIdTypes[id] ? transIdTypes[id] : "",
-          data: [formState[id][key]],
-        });
-        transOrigin[id] = structuredClone(transDataObject[id]);
+      // Ensure we have the form state entry for this key
+      if (!formState[id]) {
+        formState[id] = {};
       }
+      
+      // If this is an empty translation being saved, ensure we have a proper object to submit
+      if (!formState[id][key] && transDataObject[id] && transDataObject[id][key]) {
+        // Clone the original object but set empty value
+        const emptyTransObj = { ...transDataObject[id][key] };
+        emptyTransObj.value = "";
+        emptyTransObj.translatableContentDigest = emptyTransObj.digest;
+        delete emptyTransObj.digest;
+        delete emptyTransObj.type;
+        delete emptyTransObj.updated;
+        
+        // Update form state
+        formStateDispatch({
+          type: "setTraslation",
+          id: id,
+          traslation: emptyTransObj,
+        });
+      }
+
+      // Get current form value, fallback to empty object if not found
+      const currentFormValue = formState[id]?.[key] || { key, value: "" };
+
+      // Only add to bulk save if we have a valid form state for this item
+      translationsToSave.push({
+        id,
+        type: transIdTypes[id] ? transIdTypes[id] : "",
+        data: [currentFormValue],
+      });
+      transOrigin[id] = structuredClone(transDataObject[id]);
     });
 
     // Submit translations in bulk
     const data = {
       translations: JSON.stringify(translationsToSave),
-      origin: transOrigin,
+      origin: JSON.stringify(transOrigin),
       id: selectedResource.id,
       market: currentMarket.id,
       marketLabel: currentMarket.name,
@@ -1847,16 +2088,101 @@ export default function App() {
       action: "trans_submit",
     };
 
-    fetcher.submit(data, { action: "/api", method: "post" });
+    // Set a timeout to clear loading state in case the API call fails
+    const timeoutId = setTimeout(() => {
+      setIsBulkSaving(false);
+      setSavingItems({});
+    }, 5000);
 
-    // Clear checked items after submitting
-    setCheckedItems(new Set());
+    try {
+      fetcher.submit(data, { action: "/api", method: "post" });
+    } catch (error) {
+      console.error("Error submitting bulk translations:", error);
+      clearTimeout(timeoutId);
+      setIsBulkSaving(false);
+      setSavingItems({});
+      setCheckedItems(new Set());
+    }
   };
 
   const renderDisabledCheckboxStyles = (id: string, key: string) => {
-    const hasTranslation = getTranslatedValue(id, key).trim() !== "";
-    return hasTranslation ? {} : { opacity: 0.5, cursor: "not-allowed" };
+    // Always return empty styles - we'll now allow all checkboxes to be checked
+    return {};
   };
+
+  // Replace the progress bar rendering logic with a function that calculates the counts
+  const calculateTranslationStatus = () => {
+    // Get counts of all translatable items
+    let confirmedCount = 0;
+    let needsAttentionCount = 0;
+    let notTranslatedCount = 0;
+
+    // First, gather all translatable items to establish the total count
+    const allTranslatableItems = new Set();
+
+    // Process product data
+    if (productInfoIds.id && transData[productInfoIds.id]) {
+      transData[productInfoIds.id].forEach((item) => {
+        allTranslatableItems.add(`${productInfoIds.id}-${item.key}`);
+      });
+    }
+
+    // Process options data
+    if (productInfoIds.options) {
+      productInfoIds.options.forEach((option) => {
+        if (transData[option.id]) {
+          allTranslatableItems.add(`${option.id}-name`);
+        }
+
+        // Option values
+        option.optionValues.forEach((value) => {
+          if (transData[value.id]) {
+            allTranslatableItems.add(`${value.id}-name`);
+          }
+        });
+      });
+    }
+
+    // Process resource info data
+    if (resourceInfo.id && transData[resourceInfo.id]) {
+      transData[resourceInfo.id].forEach((item) => {
+        allTranslatableItems.add(`${resourceInfo.id}-${item.key}`);
+      });
+    }
+
+    // Now categorize each item
+    allTranslatableItems.forEach((key) => {
+      const [id, fieldKey] = key.split("-");
+
+      if (translationStatus[key] === "confirmed") {
+        confirmedCount++;
+      } else if (getTranslatedValue(id, fieldKey).trim() !== "") {
+        needsAttentionCount++;
+      } else {
+        notTranslatedCount++;
+      }
+    });
+
+    const total = allTranslatableItems.size;
+
+    return {
+      confirmedCount,
+      needsAttentionCount,
+      notTranslatedCount,
+      total,
+    };
+  };
+
+  const hasTranslatables = (resource:any) => {
+    let returnFlag = true;
+    const sectionPath = resource._path ?? path;
+    
+    if (sectionPath == 'shop') {
+      returnFlag = (transData[resourceInfo.id] && (transData[resourceInfo.id].length > 0));
+    }
+    
+    return returnFlag;
+  }
 
   return (
     <Box>
@@ -1879,41 +2205,14 @@ export default function App() {
                 }}
               >
                 <div style={{ marginLeft: "1rem", flexGrow: 1 }}>
-                  <InlineStack
-                    gap="100"
-                    align="center"
-                    blockAlign="center"
-                    wrap={false}
-                  >
-                    {!isSearchVisible && context.selectors}
-                    {isSearchVisible && (
-                      <div style={{ flex: "0 0 calc(100% - 200px)" }}>
-                        <TextField
-                          label="Search by keyword"
-                          labelHidden
-                          focused
-                          placeholder="Search by keyword"
-                          minLength={100}
-                          value={searchKey}
-                          onChange={(value) => setSearchKey(value)}
-                          autoComplete="off"
-                        />
-                      </div>
-                    )}
-                    <Box>
-                      {!isSearchVisible && (
-                        <Button
-                          icon={SearchIcon}
-                          onClick={() => setIsSearchVisible(true)}
-                        />
-                      )}
-                      {isSearchVisible && (
-                        <Button onClick={() => setIsSearchVisible(false)}>
-                          Cancel
-                        </Button>
-                      )}
-                    </Box>
-                  </InlineStack>
+                  <SearchBar
+                    onSearch={(value) => setSearchKey(value)}
+                    onToggleVisibility={(isVisible) =>
+                      setIsSearchVisible(isVisible)
+                    }
+                    isVisible={isSearchVisible}
+                    selectors={context.selectors}
+                  />
                 </div>
                 <ButtonGroup>
                   {!isFullscreenMode && (
@@ -1926,7 +2225,7 @@ export default function App() {
                     />
                   )}
 
-                  <SyncRunner asButton />
+                  {/* <SyncRunner /> */}
 
                   <Button
                     onClick={() => {
@@ -1996,17 +2295,41 @@ export default function App() {
                     visible={!isSearchVisible}
                   />
                 )}
+                {section == "content" && (
+                  <ThemeContentPanel
+                    onSelect={selectResource}
+                    onInject={injectTransReadData}
+                    setLoading={setIsTranslationLoading}
+                    selected={selectedResource}
+                    section={section}
+                    visible={!isSearchVisible}
+                    theme={theme}
+                    locale={currentLocale}
+                    market={currentMarket}
+                  />
+                )}
 
-                {['filter', 'policy', 'metaobject', 'template', 'theme', 'static', 'section', 'content', 'embed'].includes(section) && (
+                {[
+                  "filter",
+                  "policy",
+                  "metaobject",
+                  "template",
+                  "theme",
+                  "static",
+                  "section",
+                  "embed",
+                  "menu",
+                  "shop",
+                ].includes(section) && (
                   <ResourcesPanel
                     onSelect={selectResource}
                     selected={selectedResource}
                     section={section}
                     visible={!isSearchVisible}
-                    key={'resroueces_panel_' + section}
+                    key={"resroueces_panel_" + section}
                   />
                 )}
-                
+
                 <SearchPanel
                   q={searchKey}
                   onSelect={selectResource}
@@ -2028,13 +2351,20 @@ export default function App() {
                     {/* {isTranslationLoading && (<LoadingScreen position='absolute' />)} */}
 
                     <Box padding="400">
-                      {selectedResource ? (
+                      {selectedResource && hasTranslatables(selectedResource) ? (
                         <BlockStack gap="400">
                           <InlineStack
                             align="space-between"
                             blockAlign="center"
                           >
-                            {renderSelectedResourceHeadline(selectedResource)}
+                            <InlineStack blockAlign="center" gap="500">
+                              <ResourceHeadline resource={selectedResource} theme={theme} />
+
+                              {/* Translation Progress Bar */}
+                              <TranslationProgressBar
+                                {...calculateTranslationStatus()}
+                              />
+                            </InlineStack>
                             <Box>
                               <ButtonGroup>
                                 <Button

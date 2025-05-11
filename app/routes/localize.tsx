@@ -65,7 +65,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   endLoop = false;
   while (!endLoop) {
     try {
-      markets = await getShopMarkets(admin.graphql);
+      markets = await getShopMarkets(admin.graphql, locales);
       endLoop = true;
     } catch (e) {}
   }

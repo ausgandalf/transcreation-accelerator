@@ -1,13 +1,10 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "12967b2878cb1061e5ea705aaaab9f68"
-name = "AI Transcreation Andrei"
-handle = "ai-transcreation-andrei"
-application_url = "https://venice-raising-preservation-shelf.trycloudflare.com"
+client_id = "c69f81fd956a8c6a375994f2d3c77115"
+application_url = "https://turns-mathematics-wearing-alberta.trycloudflare.com"
 embedded = true
-
-[build]
-automatically_update_urls_on_dev = true
+name = "AI Transcreation Otto"
+handle = "ai-transcreation-otto"
 
 [webhooks]
 api_version = "2025-04"
@@ -18,10 +15,13 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://venice-raising-preservation-shelf.trycloudflare.com/auth/callback",
-  "https://venice-raising-preservation-shelf.trycloudflare.com/auth/shopify/callback",
-  "https://venice-raising-preservation-shelf.trycloudflare.com/api/auth/callback"
+  "https://turns-mathematics-wearing-alberta.trycloudflare.com/auth/callback",
+  "https://turns-mathematics-wearing-alberta.trycloudflare.com/auth/shopify/callback",
+  "https://turns-mathematics-wearing-alberta.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
+
+[build]
+automatically_update_urls_on_dev = true

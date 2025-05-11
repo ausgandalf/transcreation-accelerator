@@ -18,20 +18,20 @@ export const sections = [
       {content: 'Metaobjects', url:  '/localize/metaobject'},
       {content: 'Pages', url:  '/localize/page'},
       {content: 'Policies', url:  '/localize/policy'},
-      // {content: 'Store metadata', url:  '#'},
+      {content: 'Store metadata', url:  '/localize/shop'},
     ],
   },
   {
     title: 'Content',
     items: [
-      // {content: 'Menu', url: '#'},
+      {content: 'Menu', url: '/localize/menu'},
     ],
   },
   {
     title: 'Theme',
     items: [
       {content: 'App embeds', url: '/localize/embed'},
-      {content: 'Default theme content', url: '/localize/content'},
+      {content: 'Default theme content', url: '/localize/content', suffix: tooltip('Themes by Shopify include professionally translated content for theme assets and checkout in supported languages.')},
       {content: 'Section groups', url: '/localize/section'},
       {content: 'Static sections', url: '/localize/static'},
       {content: 'Templates', url: '/localize/template'},
@@ -41,7 +41,7 @@ export const sections = [
   {
     title: 'Settings',
     items: [
-      // {content: 'Notifications', url: '#'},
+      // {content: 'Notifications', url: '/localize/notificaiton', suffix: tooltip('Shopify provides professionally translated content for notifications in supported languages.')},
       // {content: 'Shipping and delivery', url: '#'},
     ],
   },
@@ -108,6 +108,9 @@ export const resourceTypePath = {
   'ONLINE_STORE_THEME_SETTINGS_DATA_SECTIONS': 'static',
   'ONLINE_STORE_THEME_LOCALE_CONTENT': 'content',
   'ONLINE_STORE_THEME_APP_EMBED': 'embed',
+  'MENU': 'menu',
+  'MENU_ITEM': 'menu',
+  'SHOP': 'shop',
 }
 
 export const syncTypes = (() => {
@@ -165,4 +168,65 @@ export const emptyStateInfo = {
   'section': ['Add a field', '/themes/${themeId}/editor'],
   'content': ['Add a field', '/themes/${themeId}/language'],
   'embed': ['Add app embed', '/themes'],
+  'menu': ['Add menu items', '/content/menus'],
+  'shop': ['Add a field', '/online_store/preferences'],
 }
+
+export const contentList = {
+  'accessibility': {
+    label: 'Accessibility',
+    keyword: 'accessibility',
+  },
+  'customer': {
+    label: 'Accounts(classic)',
+    keyword: 'customer',
+  },
+  'customer_accounts': {
+    label: 'Accounts(new)',
+    keyword: 'customer_accounts',
+  },
+  'blogs': {
+    label: 'Blogs',
+    keyword: 'blogs',
+  },
+  'shopify': {
+    label: 'Checkout and systems',
+    keyword: 'shopify',
+  },
+  'general': {
+    label: 'General',
+    keyword: 'general',
+  },
+  'gift_cards': {
+    label: 'Gift cards',
+    keyword: 'gift_cards',
+  },
+  'localization': {
+    label: 'Localization',
+    keyword: 'localization',
+  },
+  'newsletter': {
+    label: 'Newsletter',
+    keyword: 'newsletter',
+  },
+  'onboarding': {
+    label: 'Onboarding',
+    keyword: 'onboarding',
+  },
+  'products': {
+    label: 'Products',
+    keyword: 'products',
+  },
+  'recipient': {
+    label: 'Recipient',
+    keyword: 'recipient',
+  },
+  'sections': {
+    label: 'Sections',
+    keyword: 'sections',
+  },
+  'templates': {
+    label: 'Templates',
+    keyword: 'templates',
+  }
+};

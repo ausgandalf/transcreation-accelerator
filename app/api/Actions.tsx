@@ -15,6 +15,8 @@ import {
   getTranslationsByIds,
 } from 'app/api/GraphQL';
 
+import { contentList } from "./data";
+
 export async function doSyncProcess(graphql, shop:string, resourceType:string, forceRestart:boolean = false):boolean { 
   let cursor:string = '';
   let hasNext:boolean = true;
@@ -397,11 +399,24 @@ export const syncOtherTranslations = async (shop:string, admin:any, idValue:any,
           }
         })
         x.translatableContent.map((y, j) => {
+
+          let parentId = idValue;
+
+          if (idTypes[x.resourceId] == 'ONLINE_STORE_THEME_LOCALE_CONTENT') {
+
+            Object.keys(contentList).some((vk) => {
+              if (y.key.indexOf(contentList[vk].keyword) === 0) {
+                parentId = vk;
+                return true;
+              }
+            })
+          }
+
           dataset.push({
             shop,
             resourceType: idTypes[x.resourceId],
             resourceId: x.resourceId.split('/').pop(),
-            parentId: idValue,
+            parentId,
             field: y.key,
             locale: locales[localeIndex]['locale'],
             market: marketLabel,
@@ -444,6 +459,12 @@ export async function getResourceInfo (shop: string, graphql, id:string, path?:s
         info = await getBlogInfo(graphql, id);
       } else if (path == 'article') {
         info = await getArticleInfo(graphql, id);
+      } else if (path == 'content') {
+        info = {
+          id,
+          title: '',
+          item: '',
+        };
       } else {
         info = await getResourceInfoFromDB(shop, id, path);
       }
@@ -457,15 +478,17 @@ export async function getResourceInfo (shop: string, graphql, id:string, path?:s
 }
 
 export async function getResourceInfoFromDB(shop: string, shopifyId: string, path: string) {
+
   const resource = {
     id: shopifyId,
-    title: await Translations.getTitle(shop, shopifyId.split('/').pop())
+    title: '',
   };
-  
-  if (resource.title == '') {
-    if (path == 'policy') {
-      resource.title = 'Privacy Policy';
-    }
+
+  if (path == 'policy') {
+    resource.title = 'Privacy Policy';
+  } else {
+    resource.title = await Translations.getTitle(shop, shopifyId.split('/').pop());
   }
+  
   return resource;
 }

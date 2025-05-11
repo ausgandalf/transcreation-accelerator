@@ -58,7 +58,7 @@ export async function getShopLocales(graphql, isHook = false) {
 }
 
 
-export async function getShopMarkets(graphql, isHook = false) {
+export async function getShopMarkets(graphql, locales:[] = [], isHook = false) {
   const query = `
   query getMarkets {
     markets(first:100) {
@@ -89,7 +89,7 @@ export async function getShopMarkets(graphql, isHook = false) {
     id: x.id,
     handle: x.handle,
     name: x.name,
-    locales: [],
+    locales,
     // locales: x?.webPresences.nodes[0].rootUrls, // ??? is this always existing here???
   }));
 }
@@ -460,6 +460,23 @@ export async function getPages(graphql, cursor?:string, limit:number = 12, statu
   return {pages, total: pagesCount.count};
 }
 
+export async function getMenuItemIds (graphql, menuId:string) {
+  const response = await graphql(`
+  query getMenuItems {
+    menu(id:"${menuId}") {
+      items {
+        id
+      }
+    }
+  }`);
+ 
+  const {
+    data: { menu },
+  } = await response.json();
+
+  return menu.items;
+}
+
 export async function getTranslatableIds(graphql, resourceType:string, cursor:string = '', limit:number = 12) {
   const after = cursor ? `after:"${cursor}",` : ``;
   const query = `
@@ -475,6 +492,44 @@ export async function getTranslatableIds(graphql, resourceType:string, cursor:st
         translatableContent {
           key
           value
+        }
+      }
+    }
+  }`;
+
+  const response = await graphql(query);
+ 
+  const {
+    data: { translatableResources },
+  } = await response.json();
+
+  return translatableResources;
+}
+
+export async function getTranslatableIdsWithTranslations(graphql, resourceType:string, locale:string, market:string, cursor:string = '', limit:number = 12) {
+  const marketFilter = market ? `, marketId: "${market}"` : `, marketId: null`;
+  const after = cursor ? `after:"${cursor}",` : ``;
+  const query = `
+  query getTranslatableIds{
+    translatableResources(first:${limit}, ${after} resourceType:${resourceType}) {
+      pageInfo {
+        endCursor
+        hasNextPage
+        hasPreviousPage
+      }
+      nodes {
+        resourceId
+        translatableContent {
+          key
+          value
+          digest
+          locale
+          type
+        }
+        translations(locale: "${locale}" ${marketFilter}) {
+          key
+          value
+          updatedAt
         }
       }
     }
@@ -538,6 +593,7 @@ export async function getTranslationsByIds(graphql, ids:string, locale:string, m
       }
     }
   }`
+  
   const response = await graphql(query);
  
   const {
