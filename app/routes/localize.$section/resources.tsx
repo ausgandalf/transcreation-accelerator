@@ -18,7 +18,7 @@ import {
 } from '@shopify/polaris-icons';
 
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { isSaveBarOpen } from 'app/components/Functions';
+import { getIDBySection, isSaveBarOpen } from 'app/components/Functions';
 import { SkeletonResources } from '../../components/Skeletons';
 
 import { getResourceTypesPerSection } from 'app/api/data';
@@ -89,7 +89,23 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
         setResources(newResources);
 
         // Select first resource, if nothing selected.
-        if (!selectedResource && (fetcher.data.resources.nodes.length > 0)) selectResource(fetcher.data.resources.nodes[0]);
+        // console.log('selected resource:', selectedResource, 'id param', searchParams.get('id'), 'section', section);
+        if (!selectedResource) {
+          let selectedItem : any = fetcher.data.resources.nodes[0] ?? false;
+
+          if (['notification'].includes(section) && searchParams.get('id')) {
+            // lets find right one
+            const selectedIdValue = getIDBySection(searchParams.get('id'), section);
+            fetcher.data.resources.nodes.some((item) => {
+              if (item.id == selectedIdValue) {
+                selectedItem = {...item};
+                return true;
+              }
+            })
+          }
+          // console.log('selectedItem', selectedItem);
+          if (selectedItem) selectResource(selectedItem);
+        } 
         
         // Remove loading anim
         setIsResourceLoading(false);

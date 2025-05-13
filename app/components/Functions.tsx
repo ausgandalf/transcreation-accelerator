@@ -201,6 +201,9 @@ export function getIDBySection(id?:string|null, section?:string) {
     case 'shop':
       idv = `gid://shopify/Shop/${id}`;
       break;
+    case 'notification':
+      idv = `gid://shopify/EmailTemplate/${id}`;
+      break;
     default: 
       idv = `gid://shopify/${makeReadable(section)}/${id}`; // Should we?? yeah!!!
   }
@@ -241,6 +244,10 @@ export function getResourceItemLabel(resourceId:string, type: string, translatab
     if (label == '') {
       label = firstLabel;
     }
+
+    // Refining process
+    label = label.replace(/{{.*?}}/g, ''); // let remove {{ - }} thing
+    label = label.replace(/{%.*?%}/g, ''); // let remove {% - %} thing
   }
 
   if (label == '') {

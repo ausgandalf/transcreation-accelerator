@@ -109,7 +109,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   let id = url.searchParams.get("id") ? url.searchParams.get("id") : "";
   // Get id in Shopify eco-system
   id = getIDBySection(id, section);
-  if (id) {
+  if (!(['notification'].includes(section)) && id) {
     // Load resource info
     selected = await getResourceInfo(shop, admin.graphql, id, section);
     if (section == 'content') {
@@ -2320,6 +2320,7 @@ export default function App() {
                   "embed",
                   "menu",
                   "shop",
+                  "notification",
                 ].includes(section) && (
                   <ResourcesPanel
                     onSelect={selectResource}

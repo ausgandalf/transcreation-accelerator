@@ -3,7 +3,7 @@ import { authenticate } from "../../shopify.server";
 import { TranslationRow, Translations } from "app/models/Translations";
 import { SyncTranslationsRow, SyncProcessRow, Sync } from "app/models/Sync";
 import { syncProductTranslations, syncCollectionTranslations, syncOtherTranslations, doSyncProcess } from "app/api/Actions";
-import { contentList, resourceTypePath } from "app/api/data";
+import { contentList, resourceTypePath, getResourceTypesPerSection, commonReadActions, syncTypes, emailTemplateNames, emailTemplateLabelMapper } from "app/api/data";
 import { getIDBySection, makeReadable, getResourceItemLabel } from "app/components/Functions";
 
 import { 
@@ -31,8 +31,6 @@ import {
 
 import { sleep } from "app/components/Functions";
 import { getResourceInfo, getResourceInfoFromDB } from "app/api/Actions";
-
-import { getResourceTypesPerSection, commonReadActions, syncTypes } from "app/api/data";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
 
@@ -249,10 +247,21 @@ export async function action({ request, params }) {
     } else {
       for (let i=0; i<resources.nodes.length; i++) {
         const node = resources.nodes[i];
-  
+        let resourceItemLabel = '';
+        if (data.type == 'EMAIL_TEMPLATE') {
+          let index = emailTemplateLabelMapper[i] ?? -1;
+          if (index == -1) {
+            resourceItemLabel = getResourceItemLabel(node.resourceId, data.type, node.translatableContent);
+          } else {
+            resourceItemLabel = emailTemplateNames[index];
+          }
+        } else {
+          resourceItemLabel = getResourceItemLabel(node.resourceId, data.type, node.translatableContent);
+        }
+        
         list.push({
           id: node.resourceId,
-          title: getResourceItemLabel(node.resourceId, data.type, node.translatableContent)
+          title: resourceItemLabel,
         });
       }
     }

@@ -3,7 +3,7 @@
 client_id = "12967b2878cb1061e5ea705aaaab9f68"
 name = "AI Transcreation Andrei"
 handle = "ai-transcreation-andrei"
-application_url = "https://venice-raising-preservation-shelf.trycloudflare.com"
+application_url = "https://objective-corporations-happen-authorization.trycloudflare.com"
 embedded = true
 
 [build]
@@ -18,9 +18,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://venice-raising-preservation-shelf.trycloudflare.com/auth/callback",
-  "https://venice-raising-preservation-shelf.trycloudflare.com/auth/shopify/callback",
-  "https://venice-raising-preservation-shelf.trycloudflare.com/api/auth/callback"
+  "https://objective-corporations-happen-authorization.trycloudflare.com/auth/callback",
+  "https://objective-corporations-happen-authorization.trycloudflare.com/auth/shopify/callback",
+  "https://objective-corporations-happen-authorization.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
