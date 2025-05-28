@@ -41,8 +41,8 @@ export const sections = [
   {
     title: 'Settings',
     items: [
-      // {content: 'Notifications', url: '/localize/notification', suffix: tooltip('Shopify provides professionally translated content for notifications in supported languages.')},
-      // {content: 'Shipping and delivery', url: '#'},
+      {content: 'Notifications', url: '/localize/notification', suffix: tooltip('Shopify provides professionally translated content for notifications in supported languages.')},
+      // {content: 'Shipping and delivery', url: '/localize/packing_slip_template'},
     ],
   },
 ]
@@ -112,6 +112,8 @@ export const resourceTypePath = {
   'MENU_ITEM': 'menu',
   'SHOP': 'shop',
   'EMAIL_TEMPLATE': 'notification',
+  'PACKING_SLIP_TEMPLATE': 'packing_slip_template',
+  'DELIVERY_METHOD_DEFINITION': 'delivery_profile',
 }
 
 export const syncTypes = (() => {

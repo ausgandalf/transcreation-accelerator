@@ -204,6 +204,12 @@ export function getIDBySection(id?:string|null, section?:string) {
     case 'notification':
       idv = `gid://shopify/EmailTemplate/${id}`;
       break;
+    case 'packing_slip_template':
+      idv = `gid://shopify/PackingSlipTemplate/${id}`;
+      break;
+    case 'delivery_profile':
+      idv = `gid://shopify/DeliveryMethodDefinition/${id}`;
+      break;
     default: 
       idv = `gid://shopify/${makeReadable(section)}/${id}`; // Should we?? yeah!!!
   }

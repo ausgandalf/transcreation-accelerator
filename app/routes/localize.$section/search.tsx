@@ -69,7 +69,7 @@ export const SearchPanel = (props:SearchPanelProps) => {
   const [filters, setFilters] = useState({
     status: [''],
     locale: [searchParams.get('shopLocale')],
-    section: [params.section],
+    section: [(params.section == 'delivery_profile') ? 'packing_slip_template' : params.section],
   });
 
   const lastPage = Math.floor((total - 1) / perPage);
@@ -176,9 +176,12 @@ export const SearchPanel = (props:SearchPanelProps) => {
       page,
       status: filters.status[0],
       types: filters.section.reduce((result, item) => {
-        const sections = resourceTypesPerSection[item];
+        let sections = resourceTypesPerSection[item];
+        if (item == 'packing_slip_template') {
+          sections.push('DELIVERY_METHOD_DEFINITION');
+        }
         if (sections) {
-          result = result + (result ? '|' : '') + resourceTypesPerSection[item].join('|');  
+          result = result + (result ? '|' : '') + sections.join('|');  
         }
         return result;
       }, ''),

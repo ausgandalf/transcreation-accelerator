@@ -2,6 +2,7 @@ import { InlineStack, Text, Thumbnail, Icon } from "@shopify/polaris";
 import { ExternalIcon, ImageIcon } from "@shopify/polaris-icons";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { Redirect } from "@shopify/app-bridge/actions";
+import { getRedirect } from 'app/components/Functions';
 
 interface ResourceHeadlineProps {
   resource: any;
@@ -10,7 +11,7 @@ interface ResourceHeadlineProps {
 
 export function ResourceHeadline({ resource, theme }: ResourceHeadlineProps) {
   const shopify = useAppBridge();
-  const getRedirect = (app: any) => Redirect.create(app);
+  // const getRedirect = (app: any) => Redirect.create(app); // This is not working. Could be Shopify error. Replacing with Pure Javascript approach (by Andrei)
 
   const _path = resource._path;
   const showingImage =
@@ -59,6 +60,10 @@ export function ResourceHeadline({ resource, theme }: ResourceHeadlineProps) {
     targetUrl = `/themes/${theme.rawId}/editor`;
   } else if (_path == "content") {
     targetUrl = `/themes/${theme.rawId}/language`;
+  } else if (_path == "packing_slip_template") {
+    targetUrl = `/settings/shipping/packing_slip_template`;
+  } else if (_path == "delivery_profile") {
+    targetUrl = `/settings/shipping/profiles`;
   }
 
   return (

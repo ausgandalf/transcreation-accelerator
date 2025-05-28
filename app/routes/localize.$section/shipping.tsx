@@ -18,77 +18,17 @@ import {
 } from '@shopify/polaris-icons';
 
 import { LoadingScreen } from 'app/components/LoadingScreen';
-import { isSaveBarOpen } from 'app/components/Functions';
+import { getIDBySection, isSaveBarOpen } from 'app/components/Functions';
 import { SkeletonResources } from '../../components/Skeletons';
 
-import { getResourceTypesPerSection, contentList } from 'app/api/data';
+import { getResourceTypesPerSection } from 'app/api/data';
 
-import { ResourcePanelProps, defaultResourcePanelProps, TransReadDataType, TransReadResponseType } from './_types';
-import { keyCodes } from 'ckeditor5';
-
-const getFilteredTranslations = (pool:TransReadDataType, type:string) => {
-  const filterd:TransReadDataType = {
-    resourceId: pool.resourceId,
-    translatableContent: [],
-    translations: []
-  };
-
-  for (let i=0; i<pool.translatableContent.length; i++) {
-    const item = pool.translatableContent[i];
-    if (item.key.indexOf(contentList[type][keyword]) === 0) {
-      filterd.translatableContent.push(item);
-    }
-  }
-
-  for (let i=0; i<pool.translations.length; i++) {
-    const item = pool.translations[i];
-    if (item.key.indexOf(contentList[type][keyword]) === 0) {
-      filterd.translations.push(item);
-    }
-  }
-
-  return filterd;
-}
-
-const buildPools = (pool:false|TransReadDataType) => {
-
-  const keys = Object.keys(contentList);
-  keys.map((x, i) => {
-    contentList[x].pool = {
-      resourceId: pool.resourceId,
-      translatableContent: [],
-      translations: []
-    }
-  });
-
-  if (!pool) return;
-
-  for (let i=0; i<pool.translatableContent.length; i++) {
-    const item = pool.translatableContent[i];
-    keys.map((x, i) => {
-      const itemKey = item.key;
-      if (itemKey.indexOf(contentList[x].keyword) === 0) {
-        contentList[x].pool.translatableContent.push(item);
-      }
-    })
-  }
-
-  for (let i=0; i<pool.translations.length; i++) {
-    const item = pool.translations[i];
-    keys.map((x, i) => {
-      if (item.key.indexOf(contentList[x].keyword) === 0) {
-        contentList[x].pool.translations.push(item);
-      }
-    })
-  }
-
-  // console.log(contentList);
-}
+import { ResourcePanelProps, defaultResourcePanelProps } from './_types';
 
 export const ResourcePanel = (props:ResourcePanelProps) => {
   
   props = {...defaultResourcePanelProps, ...props}
-  const { selected, section, visible, theme, onSelect, onInject, setLoading, locale, market } = props;
+  const { selected, section, visible, onSelect } = props;
   
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
@@ -108,15 +48,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
   const [page, setPage] = useState(0);
   const [cursor, setCursor] = useState(''); // if empty, means reached to the end.
   const [knownTotalPage, setKnownTotalPage] = useState(0);
-
-  const [isPoolBuilt, setIsPoolBuilt] = useState(false);
-  const [currentLocale, setCurrentLocale] = useState('');
-  const [currentMarket, setCurrentMarket] = useState('');
-
-  const [translationsPool, setTranslationsPool] = useState<TransReadDataType[]>([]);
-  const [previousLoadedKey, setPreviousLoadedKey] = useState('');
-
-  
+  const [filterStatus, setFilterStatus] = useState('');
 
   const totalPage = Math.ceil(resources.length / perPage);
   const isFirstLoad = useRef(true);
@@ -127,127 +59,53 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
   const selectResource = (item) => {
 
     const searchParamValues = ((prev) => {
-      // prev.delete('highlight');
-      prev.set('item', item.item);
+      prev.delete('highlight');
       return prev;
     })(searchParams);
 
     setSelectedResource(item);
-
-
-    // const fakeResponse:TransReadResponseType = {
-    //   action: 'content_read',
-    //   idTypes: {[item.id]: 'ONLINE_STORE_THEME_LOCALE_CONTENT'},
-    //   input: {
-    //     action: "content_read",
-    //     id:"gid://shopify/Product/15196767781199",
-    //     market: market.id,
-    //     locale: locale.locale
-    //   },
-    //   resource: {
-    //     id: item.id
-    //   },
-    //   transdata: [contentList[item.item].pool]
-    // }
-
-    // onSelect(item, searchParamValues, section, fakeResponse);
-
-    onSelect(item, searchParamValues, section);
-  }
-
-  const triggerInjection = (resourceItem:any, force:boolean = false) => {
-    if (!resourceItem) return;
-    if (!force) {
-      if (!isPoolBuilt) return;
-      if (('locale' in resourceItem) && ('market' in resourceItem)) {
-        if (!((currentLocale == resourceItem.locale) && (currentMarket == resourceItem.market))) return;
-      }
-    }
-
-    setLoading(true);
-    const fakeResponse:TransReadResponseType = {
-      action: 'content_read',
-      idTypes: {[resourceItem.id]: 'ONLINE_STORE_THEME_LOCALE_CONTENT'},
-      input: {
-        action: "content_read",
-        id:"gid://shopify/Product/15196767781199",
-        market: market.id,
-        locale: locale.locale
-      },
-      resource: {
-        id: resourceItem.id
-      },
-      transdata: [contentList[resourceItem.item].pool]
-    }
-    // console.log('injecting...', resourceItem, section, fakeResponse);
-    onInject(resourceItem, section, fakeResponse);
-    // setLoading(false);
+    onSelect(item, searchParamValues, item._path);
   }
 
   useEffect(() => {
-    // console.log('selection updated:', selected);
-    // if (!selectedResource || (selected.item != selectedResource.item)) {
-    //   if (isPoolBuilt) {
-    //     selectResource(selected);
-    //   }
-    // }
     setSelectedResource(selected);
-    triggerInjection(selected);
   }, [selected]);
-
-  // useEffect(() => {
-  //   triggerInjection(selectedResource);
-  // }, [selectedResource]);
 
   useEffect(() => {
     // console.log(fetcher);
     if (!fetcher.data) {
     } else {
-      if (fetcher.data.action == 'resource_list') {
-
-        if (!((fetcher.data.input.locale == locale.locale) && (fetcher.data.input.market == market.id))) return;
-
-        let itemIdValue = '';
-        if (fetcher.data.resources.nodes.length > 0) {
-          itemIdValue = fetcher.data.resources.nodes[0]['resourceId'];
-          
-          setTranslationsPool(fetcher.data.resources.nodes);
-          buildPools(fetcher.data.resources.nodes[0]);
-
-          setIsPoolBuilt(true);
-          setCurrentLocale(fetcher.data.input.locale);
-          setCurrentMarket(fetcher.data.input.market);
-
-        } else {
-          setTranslationsPool([]);
-          buildPools(false);
-        }
-
-        // setKnownTotalPage(fetcher.data.total);
-        setKnownTotalPage(Object.keys(contentList).length);
-        setCursor(''); // Disable loading
-        const newResources = Object.keys(contentList).map((x, i) => ({
-          id: itemIdValue,
-          item: x,
-          title: contentList[x]['label']
-        }));
-
-        setResources(newResources);
+      if (fetcher.data.action == 'shipping_list') {
         
-        if (selectedResource) {
-          // console.log('selecting...', selectedResource);
-          selectResource(selectedResource);
-          triggerInjection(selectedResource, true);
-        } else {
-          // console.log('selecting...first...item');
-          if (newResources.length > 0) {
-            selectResource(newResources[0]);
-            // triggerInjection(newResources[0]);
+        setKnownTotalPage(fetcher.data.total);
+        setCursor(''); // Disable loading
+        
+        const newResources = [...fetcher.data.resources.nodes];
+        setResources(newResources);
+
+        let selectedId:any = searchParams.get('id');
+        selectedId = selectedId ? getIDBySection(selectedId, section) : false;
+
+        let selectedItem : any = false;
+        let firstItem : any = false;
+        newResources.some((x) => {
+          if (x._path == section) {
+            if (!firstItem) firstItem = x;
+            if (selectedId) {
+              if (selectedId == x.id) {
+                selectedItem = x;
+                return true;
+              }
+            } else {
+              selectedItem = x;
+              return true;
+            }
           }
-        }
+        })
+        if (!selectedItem) selectedItem = firstItem;
+        if (selectedItem) selectResource(selectedItem);
         
         // Remove loading anim
-        setLoading(false);
         setIsResourceLoading(false);
       }
     }
@@ -273,16 +131,12 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
 
   const loadResources = (props:{}) => {
     // if (!isFirstLoad && isLastPage) return;
-    setIsPoolBuilt(false);
     setIsResourceLoading(true);
     const data = {
-      type: resourceTypesPerSection[section][0],
-      cursor: props.cursor,
-      perPage: props.perPage,
-      market: market.id,
-      locale: locale.locale,
-      action: 'resource_list',
-      theme: theme.id.split('/').pop(),
+      // type: resourceTypesPerSection[section][0],
+      // cursor: props.cursor,
+      // perPage: props.perPage,
+      action: 'shipping_list',
     };
     // console.log('list products...');
     fetcher.submit(data, { action: "/api", method: "post" });
@@ -290,10 +144,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
   };
 
   const doLoadResources = () => {
-    if (previousLoadedKey == (`${locale.locale}-${market.id}`)) return;
-    // console.log('loading...resources...for...', `${locale.locale}-${market.id}`);
-    setLoading(true);
-    setPreviousLoadedKey(`${locale.locale}-${market.id}`);
+    // console.log('loading...colleciton...');
     loadResources({cursor, perPage});
   };
 
@@ -304,10 +155,6 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
     isFirstLoad.current = false;
   }, [page]);
 
-  useEffect(() => {
-    doLoadResources();
-  }, [market, locale]);
-
   const renderItem = (item:{}) => {
     return (
       <a 
@@ -316,7 +163,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
         onClick={(e) => {
           e.preventDefault();
 
-          if (selectedResource.item == item.item) return; 
+          if (selectedResource.id == item.id) return; 
 
           if (isSaveBarOpen()) {
             shopify.toast.show("You have unsaved changes. ", {duration: 2000});
@@ -371,14 +218,14 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
           
           { (pagedResources.length > 0) ? pagedResources.map((x, i) => (
             <div 
-              key={'resource-' + x.item}
-              className={'item' + ((x.item == selectedResource.item) ? ' selected' : '')}
+              key={'resource-' + x.id}
+              className={'item' + ((x.id == selectedResource.id) ? ' selected' : '')}
               // style={{
               //   background: (x.handle == selectedResource.handle) ? 'var(--p-color-bg-surface-brand-selected)' : 'transparent',
               //   padding: '10px 20px',
               // }}
             >
-              { renderItem({...x, market:market.id, locale:locale.locale}) }
+              { renderItem(x) }
             </div>
           )) : (isResourceLoading ? (<SkeletonResources />) : (
             <EmptyState

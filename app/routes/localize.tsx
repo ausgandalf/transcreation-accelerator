@@ -180,7 +180,8 @@ export default function App() {
   const pathLabel = useCallback(() => {
     let label = '';
     paths.some((x) => {
-      if (x.url == path) {
+      const upPath = (path == '/localize/delivery_profile') ? '/localize/packing_slip_template' : path;
+      if (x.url == upPath) {
         label = x.content;
         return true;
       }

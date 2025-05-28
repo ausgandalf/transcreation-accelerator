@@ -3,7 +3,7 @@
 client_id = "12967b2878cb1061e5ea705aaaab9f68"
 name = "AI Transcreation Andrei"
 handle = "ai-transcreation-andrei"
-application_url = "https://objective-corporations-happen-authorization.trycloudflare.com"
+application_url = "https://cleveland-polls-monetary-barcelona.trycloudflare.com"
 embedded = true
 
 [build]
@@ -18,9 +18,9 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://objective-corporations-happen-authorization.trycloudflare.com/auth/callback",
-  "https://objective-corporations-happen-authorization.trycloudflare.com/auth/shopify/callback",
-  "https://objective-corporations-happen-authorization.trycloudflare.com/api/auth/callback"
+  "https://cleveland-polls-monetary-barcelona.trycloudflare.com/auth/callback",
+  "https://cleveland-polls-monetary-barcelona.trycloudflare.com/auth/shopify/callback",
+  "https://cleveland-polls-monetary-barcelona.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

@@ -271,6 +271,44 @@ export async function action({ request, params }) {
       nodes: list
     }, total: list.length};
 
+  } else if (data.action == 'shipping_list') {
+    // Load blog list
+    let resShipping, resDelivery;
+    let endLoop = false;
+    while (!endLoop) {
+      try {
+        resShipping = await getTranslatableIds(admin.graphql, 'PACKING_SLIP_TEMPLATE', '', 250);
+        resDelivery = await getTranslatableIds(admin.graphql, 'DELIVERY_METHOD_DEFINITION', '', 250);
+        endLoop = true;
+      } catch (e) {
+        console.log(e);
+      }
+    }
+
+    let list = [];
+    
+    for (let i=0; i<resShipping.nodes.length; i++) {
+      const node = resShipping.nodes[i];
+      list.push({
+        id: node.resourceId,
+        title: 'Packing slip template',
+        _path: 'packing_slip_template'
+      });
+    }
+
+    for (let i=0; i<resDelivery.nodes.length; i++) {
+      const node = resDelivery.nodes[i];
+      list.push({
+        id: node.resourceId,
+        title: 'General Profile',
+        _path: 'delivery_profile'
+      });
+    }
+
+    result = {resources: {
+      nodes: list
+    }, total: list.length};
+
   } else if (data.action == 'trans_read') {
     // Load Product info
     const ids = JSON.parse(data.ids);

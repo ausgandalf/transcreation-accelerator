@@ -73,6 +73,7 @@ import { ResourcePanel as ArticlesPanel } from "./articles";
 import { ResourcePanel as PagesPanel } from "./pages";
 import { ResourcePanel as ThemeContentPanel } from "./theme_content";
 import { ResourcePanel as ResourcesPanel } from "./resources";
+import { ResourcePanel as ShippingPanel } from "./shipping";
 
 import { SearchPanel } from "./search";
 
@@ -109,7 +110,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   let id = url.searchParams.get("id") ? url.searchParams.get("id") : "";
   // Get id in Shopify eco-system
   id = getIDBySection(id, section);
-  if (!(['notification'].includes(section)) && id) {
+  if (!(['notification', 'packing_slip_template', 'delivery_profile'].includes(section)) && id) {
     // Load resource info
     selected = await getResourceInfo(shop, admin.graphql, id, section);
     if (section == 'content') {
@@ -542,9 +543,11 @@ export default function App() {
   };
 
   const injectTransReadData = (item:any, path: string = "", fakeResponse:any = false) => {
-    console.log(item, path, fakeResponse);
+    // console.log(item, path, fakeResponse);
     if (fakeResponse) {
-      onTransReadReturned(fakeResponse);
+      setTimeout(() => {
+        onTransReadReturned(fakeResponse);
+      }, 100);
     }
   };
 
