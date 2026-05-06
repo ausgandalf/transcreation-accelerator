@@ -1,4 +1,3 @@
-import { findRenderedComponentWithType } from "react-dom/test-utils";
 import db from "../db.server";
 
 export interface TranslationsCondition {

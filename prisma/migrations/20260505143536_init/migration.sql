@@ -51,6 +51,20 @@ CREATE TABLE "SyncProcess" (
     "hasNext" BOOLEAN DEFAULT false
 );
 
+-- CreateTable
+CREATE TABLE "TranslationState" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "shop" TEXT NOT NULL,
+    "resourceId" TEXT NOT NULL,
+    "resourceType" TEXT NOT NULL,
+    "parentProductId" TEXT,
+    "field" TEXT NOT NULL,
+    "locale" TEXT NOT NULL,
+    "market" TEXT NOT NULL,
+    "status" TEXT,
+    "previousValue" TEXT
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Translations_shop_resourceId_field_locale_market_key" ON "Translations"("shop", "resourceId", "field", "locale", "market");
 
@@ -59,3 +73,6 @@ CREATE UNIQUE INDEX "SyncTranslations_shop_resourceType_resourceId_key" ON "Sync
 
 -- CreateIndex
 CREATE UNIQUE INDEX "SyncProcess_shop_resourceType_key" ON "SyncProcess"("shop", "resourceType");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TranslationState_shop_resourceId_field_locale_market_key" ON "TranslationState"("shop", "resourceId", "field", "locale", "market");

@@ -77,8 +77,8 @@ export const syncProductTranslations = async (shop:string, admin:any, productIdV
   productIdValue = `${productIdValue}`;
   const productId = `gid://shopify/Product/${productIdValue}`;
   
-  // Clear translations
-  Translations.clearTranslations(shop, productIdValue);
+  // Clear translations (must finish before writes — SQLite serializes writers)
+  await Translations.clearTranslations(shop, productIdValue);
 
   let locales = [];
   let markets = [];
@@ -206,8 +206,7 @@ export const syncCollectionTranslations = async (shop:string, admin:any, collect
   collectionIdValue = `${collectionIdValue}`;
   const collectionId = `gid://shopify/Collection/${collectionIdValue}`;
   
-  // Clear translations
-  Translations.clearTranslations(shop, collectionId);
+  await Translations.clearTranslations(shop, collectionId);
 
   let locales = [];
   let markets = [];
@@ -326,8 +325,7 @@ export const syncOtherTranslations = async (shop:string, admin:any, idValue:any,
   idValue = `${idValue}`;
   const shopifyId = getIDBySection(idValue, resourceTypePath[resourceType]);
   
-  // Clear translations
-  Translations.clearTranslations(shop, shopifyId);
+  await Translations.clearTranslations(shop, shopifyId);
 
   let locales = [];
   let markets = [];

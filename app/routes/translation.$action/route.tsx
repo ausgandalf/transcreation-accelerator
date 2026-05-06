@@ -65,7 +65,7 @@ export default function App() {
           )}
 
           {(action == 'sync') && (
-            <SyncRunner />
+            <SyncRunner asButton={true} />
           )}
         </Box>
       

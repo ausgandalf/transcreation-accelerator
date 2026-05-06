@@ -71,7 +71,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
   }, [selected]);
 
   useEffect(() => {
-    // console.log(fetcher);
+    console.log(fetcher);
     if (!fetcher.data) {
     } else {
       if (fetcher.data.action == 'collection_list') {

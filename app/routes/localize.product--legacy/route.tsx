@@ -242,9 +242,16 @@ export default function App() {
     } else {
       if (fetcher.data.action == 'product_read') {
         // TODO
-        if (fetcher.data.transdata && (fetcher.data.product.id == selectedResource.id)) {
+        // API returns `resource` for product_read (legacy key `product` kept for compatibility)
+        const productPayload = fetcher.data.resource ?? fetcher.data.product;
+        if (
+          fetcher.data.transdata &&
+          productPayload &&
+          selectedResource &&
+          productPayload.id == selectedResource.id
+        ) {
 
-          setProductInfoIds({...fetcher.data.product});
+          setProductInfoIds({...productPayload});
           setCurrentTranslateMarketLocale(fetcher.data.input.locale + '-' + fetcher.data.input.market);
           // Init form state
           let translatableData = {};

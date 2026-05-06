@@ -1,16 +1,12 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "12967b2878cb1061e5ea705aaaab9f68"
-name = "AI Transcreation Andrei"
-handle = "ai-transcreation-andrei"
-application_url = "https://cleveland-polls-monetary-barcelona.trycloudflare.com"
+client_id = "9ff828218ca441103e074dc3c0c45201"
+application_url = "https://banana-sydney-tr-raleigh.trycloudflare.com"
 embedded = true
-
-[build]
-automatically_update_urls_on_dev = true
+name = "ai-transcreation"
 
 [webhooks]
-api_version = "2025-04"
+api_version = "2026-07"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
@@ -18,10 +14,11 @@ scopes = "read_content,read_customer_events,read_files,read_legal_policies,read_
 
 [auth]
 redirect_urls = [
-  "https://cleveland-polls-monetary-barcelona.trycloudflare.com/auth/callback",
-  "https://cleveland-polls-monetary-barcelona.trycloudflare.com/auth/shopify/callback",
-  "https://cleveland-polls-monetary-barcelona.trycloudflare.com/api/auth/callback"
+  "https://banana-sydney-tr-raleigh.trycloudflare.com/auth/callback",
+  "https://banana-sydney-tr-raleigh.trycloudflare.com/auth/shopify/callback",
+  "https://banana-sydney-tr-raleigh.trycloudflare.com/api/auth/callback"
 ]
 
-[pos]
-embedded = false
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

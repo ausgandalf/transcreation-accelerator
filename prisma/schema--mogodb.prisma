@@ -8,20 +8,26 @@ generator client {
 // Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+// datasource db {
+//   provider = "sqlite"
+//   url      = "file:dev.sqlite"
+// }
+
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
-  id            String    @id
+  mongoId       String    @id @default(auto()) @map("_id") @db.ObjectId
+  id            String    @unique
   shop          String
   state         String
   isOnline      Boolean   @default(false)
   scope         String?
   expires       DateTime?
   accessToken   String
-  userId        Int?
+  userId        BigInt?
   firstName     String?
   lastName      String?
   email         String?
@@ -32,7 +38,7 @@ model Session {
 }
 
 model Translations {
-  id            Int     @id @default(autoincrement())
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
   shop          String
   resourceType  String
   resourceId    String
@@ -50,7 +56,7 @@ model Translations {
 
 
 model SyncTranslations {
-  id            Int     @id @default(autoincrement())
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
   shop          String
   resourceType  String
   resourceId    String
@@ -60,11 +66,26 @@ model SyncTranslations {
 }
 
 model SyncProcess {
-  id            Int     @id @default(autoincrement())
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
   shop          String
   resourceType  String
   cursor        String?       @default("")
   hasNext       Boolean?      @default(false)
 
   @@unique([shop, resourceType])
+}
+
+model TranslationState {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  shop           String
+  resourceId     String
+  resourceType   String   // "product", "option", or "option_value"
+  parentProductId String? // The product ID this belongs to
+  field          String
+  locale         String
+  market         String
+  status         String?
+  previousValue  String?
+
+  @@unique([shop, resourceId, field, locale, market])
 }

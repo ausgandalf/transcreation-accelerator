@@ -37,19 +37,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
 
   const url = new URL(request.url);
-  const action = url.searchParams.get("q");
+  const action = url.searchParams.get("action");
 
   let result:any = {};
 
+  // return await apiAction(admin, session.shop, { action });
   return { msg:'Welcome!' };
-  // return Response.json({ msg:'Welcome!' });
 };
 
 export async function action({ request, params }) {
+
   const { admin, session } = await authenticate.admin(request);
   const { shop } = session;
 
-  const submittedFormData = await request.formData();
+  let submittedFormData: FormData | undefined = await request.formData();
 
   /** @type {any} */
   const data = {
@@ -57,6 +58,11 @@ export async function action({ request, params }) {
     shop,
   };
 
+  return await apiAction(admin, shop, data, submittedFormData);
+}
+
+async function apiAction(admin: any, shop: any, data: any, submittedFormData?: FormData) {
+  
   let result:any = {};
 
   if (data.action == 'product_list') {
@@ -452,14 +458,14 @@ export async function action({ request, params }) {
     }
   } else if (data.action == 'upload_image') {
     // Load collection list
-    const file = submittedFormData.get('file');
+    const file = submittedFormData?.get('file');
     const params = data.param_names.split(',');
     
     const formData = new FormData();
     params.map((x, i) => {
       formData.append(x, data[x]);  
     })
-    formData.append('file', file);
+    if (file) formData.append('file', file);
 
     const response = await fetch(data.url, {
       method: 'POST',

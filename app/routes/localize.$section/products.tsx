@@ -71,7 +71,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
   }, [selected]);
 
   useEffect(() => {
-    // console.log(fetcher);
+    console.log(fetcher);
     if (!fetcher.data) {
     } else {
       if (fetcher.data.action == 'product_list') {
@@ -115,7 +115,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
       status: props.status,
       action: 'product_list',
     };
-    // console.log('list products...');
+    console.log('list products...');
     fetcher.submit(data, { action: "/api", method: "post" });
     // submit(data, { method: "post" });
   };
@@ -125,7 +125,7 @@ export const ResourcePanel = (props:ResourcePanelProps) => {
   };
 
   useEffect(() => {
-    // console.log('Is first load?', isFirstLoad, 'Should load?', shouldLoad, 'Is last page?', isLastPage, cursor, page);
+    console.log('Is first load?', isFirstLoad, 'Should load?', shouldLoad, 'Is last page?', isLastPage, cursor, page);
     if (isFirstLoad.current || shouldLoad) loadProductsByState();
     isFirstLoad.current = false;
   }, [page]);

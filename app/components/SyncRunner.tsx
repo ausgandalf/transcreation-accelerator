@@ -4,7 +4,20 @@ import { useFetcher } from "@remix-run/react";
 import {
   Button,
   Tooltip,
+  Text,
+  BlockStack,
 } from "@shopify/polaris";
+
+type SyncProcessResponse = {
+  action?: string;
+  hasNext?: boolean;
+  input?: { force?: string | number };
+};
+
+type SyncDoResponse = {
+  action?: string;
+  isLeft?: boolean;
+};
 
 interface SyncRunnerProps {
   asButton?: boolean,
@@ -25,8 +38,21 @@ export const SyncRunner = (props:SyncRunnerProps) => {
   ///////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////
   
-  const fetcher = useFetcher();
-  const transFetcher = useFetcher();
+  const fetcher = useFetcher<SyncProcessResponse>();
+  const transFetcher = useFetcher<SyncDoResponse>();
+
+  useEffect(() => {
+    console.log("[SyncRunner] fetcher.state:", fetcher.state, "fetcher.data:", fetcher.data);
+  }, [fetcher.state, fetcher.data]);
+
+  useEffect(() => {
+    console.log(
+      "[SyncRunner] transFetcher.state:",
+      transFetcher.state,
+      "transFetcher.data:",
+      transFetcher.data,
+    );
+  }, [transFetcher.state, transFetcher.data]);
   
   useEffect(() => {
     // console.log(fetcher);
@@ -34,9 +60,9 @@ export const SyncRunner = (props:SyncRunnerProps) => {
     } else {
       if (fetcher.data.action == 'sync_process') {
         // TODO
-        setSyncHasNext(fetcher.data.hasNext);
+        setSyncHasNext(!!fetcher.data.hasNext);
         if (fetcher.data.hasNext) syncPooling();
-        if (fetcher.data.input.force == '1') syncDoing();
+        if (fetcher.data.input?.force == '1') syncDoing();
       }
     }
   }, [fetcher.data]);
@@ -47,19 +73,28 @@ export const SyncRunner = (props:SyncRunnerProps) => {
     } else {
       if (transFetcher.data.action == 'sync_do') {
         // TODO
-        setIsSyncPoolLeft(transFetcher.data.isLeft);
+        setIsSyncPoolLeft(!!transFetcher.data.isLeft);
         if (transFetcher.data.isLeft) syncDoing();
       }
     }
   }, [transFetcher.data]);
 
+  const toFormData = (obj: Record<string, unknown>) => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries(obj)) {
+      if (value === undefined || value === null) continue;
+      formData.append(key, String(value));
+    }
+    return formData;
+  };
+
   const syncPooling = () => {
     const data = {
       action: 'sync_process',
     };
-    // console.log('sync starting...', data);
+    console.log('sync starting...', data);
     setSyncHasNext(true);
-    fetcher.submit(data, { action: "/api", method: "post" });
+    fetcher.submit(toFormData(data), { action: "/api", method: "post" });
   };
 
   const syncPoolingRestart = () => {
@@ -67,9 +102,9 @@ export const SyncRunner = (props:SyncRunnerProps) => {
       force: 1,
       action: 'sync_process',
     };
-    // console.log('sync starting...', data);
+    console.log('sync restart clicked...', data);
     setSyncHasNext(true);
-    fetcher.submit(data, { action: "/api", method: "post" });
+    fetcher.submit(toFormData(data), { action: "/api", method: "post" });
   };
 
   const syncDoing = () => {
@@ -78,7 +113,7 @@ export const SyncRunner = (props:SyncRunnerProps) => {
     };
     // console.log('sync doing...', data);
     setIsSyncPoolLeft(true);
-    transFetcher.submit(data, { action: "/api", method: "post" });
+    transFetcher.submit(toFormData(data), { action: "/api", method: "post" });
   };
 
   useEffect(() => {
@@ -93,9 +128,23 @@ export const SyncRunner = (props:SyncRunnerProps) => {
   return (
     <div>
       {asButton && (
-        <Tooltip active content={buttonTooltip()}>
-          <Button loading={syncHasNext || isSyncPoolLeft} onClick={syncPoolingRestart}>Re-sync</Button>
-        </Tooltip>
+        <BlockStack gap="200">
+          <Text as="p" variant="bodySm" tone="subdued">
+            Scheduler: {fetcher.state} <br /> Syncer: {transFetcher.state}
+          </Text>
+          <Tooltip content={buttonTooltip()}>
+            <Button
+              loading={syncHasNext || isSyncPoolLeft}
+              onClick={() => {
+                console.log("SyncRunner button onClick fired");
+                syncPoolingRestart();
+                console.log("[SyncRunner] after submit, fetcher.state:", fetcher.state);
+              }}
+            >
+              Re-sync
+            </Button>
+          </Tooltip>
+        </BlockStack>
       )}
     </div>
   );

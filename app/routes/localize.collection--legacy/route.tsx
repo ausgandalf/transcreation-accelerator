@@ -154,14 +154,15 @@ export default function App() {
   useEffect(() => {
     console.log('cursor:', cursor, 'isLastPage:', isLastPage, resources.length, fetcher);
     console.log(fetcher.data);
-    if (fetcher.data) {
-      if (fetcher.data.collections.pageInfo.hasNextPage) {
-        setCursor(fetcher.data.collections.pageInfo.endCursor);
+    if ((fetcher.data) && (fetcher.data.collections) && (fetcher.data.collections.collections)) {
+      const collectionData = fetcher.data.collections.collections;
+      if (collectionData.pageInfo.hasNextPage) {
+        setCursor(collectionData.pageInfo.endCursor);
       }
-      setResources((oldResources) => ([...oldResources, ...fetcher.data.collections.nodes]));
+      setResources((oldResources) => ([...oldResources, ...collectionData.nodes]));
 
       // Select first resource, if nothing selected.
-      if (!selectedResource && (fetcher.data.collections.nodes.length > 0)) setSelectedResource(fetcher.data.collections.nodes[0]);
+      if (!selectedResource && (collectionData.nodes.length > 0)) setSelectedResource(collectionData.nodes[0]);
     }
   }, [fetcher.data]);
 
